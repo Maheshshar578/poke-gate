@@ -14,6 +14,7 @@ class GateService: ObservableObject {
 
     @Published var status: Status = .stopped
     @Published var logs: [String] = []
+    @Published var userName: String? = nil
 
     private var hasAutoStarted = false
     private var process: Process?
@@ -57,7 +58,26 @@ class GateService: ObservableObject {
             return
         }
         shouldRestart = true
+        fetchUserName()
         launchProcess()
+    }
+
+    private func fetchUserName() {
+        guard let key = loadAPIKey() else { return }
+        Task {
+            let url = URL(string: "https://poke.com/api/v1/user/profile")!
+            var request = URLRequest(url: url)
+            request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
+            do {
+                let (data, response) = try await URLSession.shared.data(for: request)
+                guard let httpResp = response as? HTTPURLResponse, httpResp.statusCode == 200 else { return }
+                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let fullName = json["name"] as? String ?? json["email"] as? String {
+                    let firstName = fullName.components(separatedBy: CharacterSet.whitespaces.union(CharacterSet(charactersIn: "@"))).first ?? fullName
+                    self.userName = firstName
+                }
+            } catch {}
+        }
     }
 
     func stop() {

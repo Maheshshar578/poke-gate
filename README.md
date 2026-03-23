@@ -1,16 +1,38 @@
-# 🚪 poke-gate
+<h1 align="center">Poke Gate</h1>
 
-Expose your machine to your [Poke](https://poke.com) AI assistant via MCP tunnel.
+<p align="center">
+  Let your <a href="https://poke.com">Poke</a> AI assistant access your machine.<br>
+  <sub>A community project — not affiliated with Poke or The Interaction Company.</sub>
+</p>
 
-Run `poke-gate` on your machine, then ask Poke from iMessage, Telegram, or SMS to run commands, read files, check system status — anything you'd do in a terminal.
+<p align="center">
+  <a href="https://github.com/f/poke-gate/releases/latest"><img src="https://img.shields.io/github/v/release/f/poke-gate?style=flat-square" alt="Latest Release"></a>
+  <a href="https://www.npmjs.com/package/poke-gate"><img src="https://img.shields.io/npm/v/poke-gate?style=flat-square" alt="npm"></a>
+  <a href="https://github.com/f/poke-gate/blob/main/LICENSE"><img src="https://img.shields.io/github/license/f/poke-gate?style=flat-square" alt="License"></a>
+  <img src="https://img.shields.io/badge/platform-macOS%2015%2B-blue?style=flat-square" alt="Platform">
+</p>
 
-## Quick start
+---
+
+Run Poke Gate on your Mac, then message Poke from iMessage, Telegram, or SMS to run commands, read files, take screenshots, and more — all on your machine.
+
+## Install
+
+**Download the macOS app** from [Releases](https://github.com/f/poke-gate/releases), open the DMG, and drag to Applications. Since the app is not notarized, you may need to run:
 
 ```bash
-npx poke-gate
+xattr -cr /Applications/Poke\ macOS\ Gate.app
 ```
 
-On first run, you'll paste your API key from [poke.com/kitchen/api-keys](https://poke.com/kitchen/api-keys).
+**Or use the npm package** (see [CLI usage](#cli-usage) below).
+
+## Setup
+
+1. Get an API key from [poke.com/kitchen/api-keys](https://poke.com/kitchen/api-keys)
+2. Open Poke Gate from your menu bar and go to **Settings**
+3. Paste your API key and save
+
+The app connects automatically and shows a green dot when ready.
 
 ## How it works
 
@@ -19,82 +41,105 @@ flowchart TD
     A["You message Poke\nfrom iMessage / Telegram / SMS"] --> B["Poke Agent"]
     B --> C["Agent calls MCP tool"]
     C --> D["MCP Tunnel (WebSocket)"]
-    D --> E["poke-gate on your machine"]
-    E --> F["Runs command / reads file / etc."]
+    D --> E["Poke Gate on your Mac"]
+    E --> F["Runs command / reads file / takes screenshot"]
     F --> D
     D --> B
     B --> A
 ```
 
-poke-gate runs a local MCP server and tunnels it to Poke's cloud. When you ask Poke something that needs your machine, the agent calls the tools, poke-gate executes them locally, and the result flows back to your chat.
+Poke Gate runs a local MCP server and tunnels it to Poke's cloud. When you ask Poke something that needs your machine, the agent calls the tools, Poke Gate executes them locally, and the result flows back to your chat.
 
 ## Tools
 
-| Tool | Description |
+| Tool | What it does |
 |------|-------------|
-| `run_command` | Execute any shell command (ls, git, brew, python, curl, etc.) |
-| `read_file` | Read a file's contents |
+| `run_command` | Execute any shell command (ls, git, brew, python, curl…) |
+| `read_file` | Read a text file |
+| `read_image` | Read an image file and return it as base64 |
 | `write_file` | Write content to a file |
 | `list_directory` | List files and directories |
 | `system_info` | OS, hostname, architecture, uptime, memory |
+| `take_screenshot` | Capture the screen (requires Screen Recording permission) |
 
 ## Examples
 
-From iMessage/Telegram, ask Poke:
+From iMessage or Telegram, ask Poke:
 
 - "What's running on port 3000?"
 - "Show me the last 5 git commits in my project"
 - "How much disk space do I have left?"
 - "Read my ~/.zshrc and suggest improvements"
-- "Create a new file called notes.txt with today's meeting notes"
-- "Run the tests in my project"
+- "Take a screenshot of my screen"
+- "Create a file called notes.txt on my Desktop"
 
-## Setup
+## macOS App
 
-### Option 1: Interactive (recommended)
+The menu bar app manages everything:
+
+- **Status** — green dot when connected, yellow when connecting, red on error
+- **Personalized** — shows "Connected to your Poke, [name]"
+- **Auto-start** — connects on launch if API key is saved
+- **Auto-restart** — reconnects automatically if the connection drops
+- **Settings** — paste your API key
+- **Logs** — view real-time tool calls and connection events
+- **Screen Recording** — prompts for permission on first launch
+
+The app runs in the menu bar only (no Dock icon). Quit is the only way to stop it.
+
+### Building from source
+
+Requires macOS 15+ and Xcode 26+.
+
+```bash
+git clone https://github.com/f/poke-gate.git
+cd poke-gate/clients/Poke\ macOS\ Gate
+open Poke\ macOS\ Gate.xcodeproj
+```
+
+Hit **Run** in Xcode, or build from the command line:
+
+```bash
+./build.sh
+```
+
+## CLI usage
+
+If you prefer the command line over the macOS app:
 
 ```bash
 npx poke-gate
 ```
 
-### Option 2: Environment variable
+On first run, paste your API key when prompted. Add `--verbose` to see tool calls in real time:
 
 ```bash
-export POKE_API_KEY=your_key_here
-npx poke-gate
+npx poke-gate --verbose
 ```
+
+Config is stored at `~/.config/poke-gate/config.json`.
 
 ## Security
 
-**poke-gate grants full shell access to your Poke agent.** This means:
+**Poke Gate grants full shell access to your Poke agent.** This means:
 
 - Any command can be run with your user's permissions
 - Files can be read and written anywhere your user has access
 - Only your Poke agent (authenticated by your API key) can reach the tunnel
 
-Only run poke-gate on machines and networks you trust. Stop it with `Ctrl-C` when you don't need it.
-
-## Configuration
-
-Config is stored at `~/.config/poke-gate/config.json`:
-
-```json
-{
-  "apiKey": "your_key_here"
-}
-```
-
-To reset, delete the file and run `npx poke-gate` again.
+Only run Poke Gate on machines and networks you trust.
 
 ## Project structure
 
 ```
+clients/
+  Poke macOS Gate/       macOS menu bar app (SwiftUI)
 bin/
-  poke-gate.js       Entry point, onboarding
+  poke-gate.js           CLI entry point + onboarding
 src/
-  app.js             Startup: MCP server + tunnel
-  mcp-server.js      JSON-RPC MCP handler with OS tools
-  tunnel.js          PokeTunnel wrapper
+  app.js                 Startup: MCP server + tunnel
+  mcp-server.js          JSON-RPC MCP handler with OS tools
+  tunnel.js              PokeTunnel wrapper
 ```
 
 ## Credits

@@ -38,8 +38,25 @@ struct MenuBarContent: View {
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
-        Label(service.status.rawValue, systemImage: statusIcon)
+        Label(statusText, systemImage: statusIcon)
             .foregroundStyle(statusColor)
+
+        if service.status == .connected {
+            Text("This machine is now accessible via Poke.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            Text("Ask your Poke to run commands or read files.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        } else if service.status == .starting {
+            Text("Establishing connection…")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        } else if service.status == .error {
+            Text("Check Settings or view Logs for details.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
 
         Divider()
 
@@ -87,6 +104,20 @@ struct MenuBarContent: View {
             NSWorkspace.shared.open(URL(string: "https://github.com/f/poke-gate")!)
         }
         .font(.caption)
+    }
+
+    private var statusText: String {
+        switch service.status {
+        case .connected:
+            if let name = service.userName {
+                return "Connected to your Poke, \(name)"
+            }
+            return "Connected to your Poke"
+        case .starting: return "Connecting…"
+        case .disconnected: return "Reconnecting…"
+        case .error: return "Connection error"
+        case .stopped: return "Stopped"
+        }
     }
 
     private var statusIcon: String {

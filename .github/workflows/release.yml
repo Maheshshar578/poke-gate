@@ -1,0 +1,73 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-26
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get version from tag
+        id: version
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          VERSION="${TAG#v}"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "number=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Update app version in Xcode project
+        run: |
+          sed -i '' "s/MARKETING_VERSION = .*;/MARKETING_VERSION = ${{ steps.version.outputs.number }};/g" "clients/Poke macOS Gate/Poke macOS Gate.xcodeproj/project.pbxproj"
+
+      - name: Commit version bump
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "clients/Poke macOS Gate/Poke macOS Gate.xcodeproj/project.pbxproj"
+          git commit -m "Bump version to ${{ steps.version.outputs.number }}" || echo "No changes to commit"
+          git push origin HEAD:refs/heads/main || echo "Push skipped"
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_26.0.app/Contents/Developer
+
+      - name: Build universal app
+        run: |
+          chmod +x build.sh
+          ./build.sh
+
+      - name: Upload DMG to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: "build/release/Poke macOS Gate.dmg"
+          name: Poke Gate ${{ steps.version.outputs.tag }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          body: |
+            ## Installation
+
+            1. Download **Poke macOS Gate.dmg** below
+            2. Open the DMG and drag **Poke macOS Gate** to Applications
+            3. Since the app is not notarized, macOS may block it on first launch. Run:
+
+            ```
+            xattr -cr /Applications/Poke\ macOS\ Gate.app
+            ```
+
+            Then open Poke macOS Gate from your menu bar.
+
+            ## CLI alternative
+
+            ```
+            npx poke-gate
+            ```
