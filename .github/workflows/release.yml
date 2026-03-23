@@ -66,8 +66,59 @@ jobs:
 
             Then open Poke macOS Gate from your menu bar.
 
+            Or install via Homebrew:
+
+            ```
+            brew install f/tap/poke-gate
+            ```
+
             ## CLI alternative
 
             ```
             npx poke-gate
             ```
+
+      - name: Compute DMG SHA256
+        id: sha
+        run: echo "sha256=$(shasum -a 256 'build/release/Poke macOS Gate.dmg' | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+
+      - name: Update Homebrew Cask tap
+        env:
+          TAP_REPO_TOKEN_HOMEBREW: ${{ secrets.TAP_REPO_TOKEN_HOMEBREW }}
+          VERSION: ${{ steps.version.outputs.tag }}
+          SHA256: ${{ steps.sha.outputs.sha256 }}
+        run: |
+          VERSION_NUM="${VERSION#v}"
+          git clone https://x-access-token:${TAP_REPO_TOKEN_HOMEBREW}@github.com/f/homebrew-tap.git tap
+          mkdir -p tap/Casks
+          cat > tap/Casks/poke-gate.rb << EOF
+          cask "poke-gate" do
+            version "${VERSION_NUM}"
+            sha256 "${SHA256}"
+
+            url "https://github.com/f/poke-gate/releases/download/${VERSION}/Poke%20macOS%20Gate.dmg"
+            name "Poke Gate"
+            desc "macOS menu bar app to expose your machine to your Poke AI assistant"
+            homepage "https://github.com/f/poke-gate"
+
+            depends_on macos: ">= :sequoia"
+
+            app "Poke macOS Gate.app"
+
+            postflight do
+              system_command "/usr/bin/xattr", args: ["-cr", "#{appdir}/Poke macOS Gate.app"]
+            end
+
+            zap trash: [
+              "~/Library/Preferences/dev.fka.Poke-macOS-Gate.plist",
+              "~/Library/Saved Application State/dev.fka.Poke-macOS-Gate.savedState",
+              "~/.config/poke-gate",
+            ]
+          end
+          EOF
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "Update poke-gate to ${VERSION}"
+          git push

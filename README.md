@@ -18,13 +18,25 @@ Run Poke Gate on your Mac, then message Poke from iMessage, Telegram, or SMS to 
 
 ## Install
 
-**Download the macOS app** from [Releases](https://github.com/f/poke-gate/releases), open the DMG, and drag to Applications. Since the app is not notarized, you may need to run:
+**Homebrew** (recommended)
+
+```bash
+brew install f/tap/poke-gate
+```
+
+**Manual download**
+
+Download the latest **Poke macOS Gate.dmg** from [Releases](https://github.com/f/poke-gate/releases), open it, and drag to Applications. Since the app is not notarized, you may need to run:
 
 ```bash
 xattr -cr /Applications/Poke\ macOS\ Gate.app
 ```
 
-**Or use the npm package** (see [CLI usage](#cli-usage) below).
+**CLI** (no macOS app needed)
+
+```bash
+npx poke-gate
+```
 
 ## Setup
 
