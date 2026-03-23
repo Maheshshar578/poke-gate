@@ -48,7 +48,7 @@ jobs:
       - name: Upload DMG to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: "build/release/Poke macOS Gate.dmg"
+          files: "build/release/Poke.macOS.Gate.dmg"
           name: Poke Gate ${{ steps.version.outputs.tag }}
           draft: false
           prerelease: false
@@ -56,7 +56,7 @@ jobs:
           body: |
             ## Installation
 
-            1. Download **Poke macOS Gate.dmg** below
+            1. Download **Poke.macOS.Gate.dmg** below
             2. Open the DMG and drag **Poke macOS Gate** to Applications
             3. Since the app is not notarized, macOS may block it on first launch. Run:
 
@@ -80,7 +80,7 @@ jobs:
 
       - name: Compute DMG SHA256
         id: sha
-        run: echo "sha256=$(shasum -a 256 'build/release/Poke macOS Gate.dmg' | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+        run: echo "sha256=$(shasum -a 256 'build/release/Poke.macOS.Gate.dmg' | awk '{print $1}')" >> "$GITHUB_OUTPUT"
 
       - name: Update Homebrew Cask tap
         env:
@@ -96,7 +96,7 @@ jobs:
             version "${VERSION_NUM}"
             sha256 "${SHA256}"
 
-            url "https://github.com/f/poke-gate/releases/download/${VERSION}/Poke%20macOS%20Gate.dmg"
+            url "https://github.com/f/poke-gate/releases/download/${VERSION}/Poke.macOS.Gate.dmg"
             name "Poke Gate"
             desc "macOS menu bar app to expose your machine to your Poke AI assistant"
             homepage "https://github.com/f/poke-gate"

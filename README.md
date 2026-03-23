@@ -30,7 +30,7 @@ brew install f/tap/poke-gate
 
 **Manual download**
 
-Download the latest **Poke macOS Gate.dmg** from [Releases](https://github.com/f/poke-gate/releases), open it, and drag to Applications. Since the app is not notarized, you may need to run:
+Download the latest **Poke.macOS.Gate.dmg** from [Releases](https://github.com/f/poke-gate/releases), open it, and drag to Applications. Since the app is not notarized, you may need to run:
 
 ```bash
 xattr -cr /Applications/Poke\ macOS\ Gate.app
