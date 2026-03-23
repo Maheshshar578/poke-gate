@@ -1,4 +1,4 @@
-# poke-gate
+# 🚪 poke-gate
 
 Expose your machine to your [Poke](https://poke.com) AI assistant via MCP tunnel.
 
