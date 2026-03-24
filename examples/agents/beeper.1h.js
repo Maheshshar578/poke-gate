@@ -36,12 +36,20 @@ async function beeperRequest(path, params = {}) {
 async function getRecentMessages() {
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
 
-  const data = await beeperRequest("/v1/messages/search", {
-    dateAfter: oneHourAgo,
-    limit: 200,
-  });
+  let allMessages = [];
+  let cursor = null;
 
-  return data.items || [];
+  while (true) {
+    const params = { dateAfter: oneHourAgo, limit: 20 };
+    if (cursor) params.cursor = cursor;
+    const data = await beeperRequest("/v1/messages/search", params);
+    const items = data.items || [];
+    allMessages.push(...items);
+    if (!data.hasMore || !data.oldestCursor) break;
+    cursor = data.oldestCursor;
+  }
+
+  return allMessages;
 }
 
 function groupBySender(messages) {
