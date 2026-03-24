@@ -2,6 +2,7 @@ import { readdirSync, readFileSync, writeFileSync, existsSync, mkdirSync } from 
 import { join, basename } from "node:path";
 import { homedir } from "node:os";
 import { exec } from "node:child_process";
+import { createInterface } from "node:readline";
 
 const CONFIG_DIR = process.env.XDG_CONFIG_HOME || join(homedir(), ".config");
 const AGENTS_DIR = join(CONFIG_DIR, "poke-gate", "agents");
@@ -233,23 +234,79 @@ export async function downloadAgent(name) {
   writeFileSync(dest, jsContent);
   console.log(`  Saved: ${dest}`);
 
-  // Try to download matching .env file
   const envName = name.split(".")[0];
+  const envDest = join(AGENTS_DIR, `.env.${envName}`);
+
+  if (existsSync(envDest)) {
+    console.log(`  .env.${envName} already exists, skipped.`);
+    console.log(`\n  Test it: npx poke-gate run-agent ${envName}`);
+    return;
+  }
+
   const envRes = await fetch(`${REPO_BASE}/.env.${envName}`).catch(() => null);
   if (envRes?.ok) {
-    const envContent = await envRes.text();
-    const envDest = join(AGENTS_DIR, `.env.${envName}`);
-    if (!existsSync(envDest)) {
-      writeFileSync(envDest, envContent);
-      console.log(`  Saved: ${envDest}`);
-      console.log(`\n  Edit the env file with your credentials:`);
-      console.log(`    nano ${envDest}`);
+    const envTemplate = await envRes.text();
+    const keys = parseEnvKeys(envTemplate);
+
+    if (keys.length > 0) {
+      console.log(`\n  This agent needs ${keys.length} env variable(s):\n`);
+      const values = await promptEnvKeys(keys);
+      let content = "";
+      for (const { key, comment } of keys) {
+        if (comment) content += `# ${comment}\n`;
+        content += `${key}=${values[key] || ""}\n`;
+      }
+      writeFileSync(envDest, content);
+      console.log(`\n  Saved: ${envDest}`);
     } else {
-      console.log(`  .env.${envName} already exists, skipped.`);
+      writeFileSync(envDest, envTemplate);
+      console.log(`  Saved: ${envDest}`);
     }
   }
 
   console.log(`\n  Test it: npx poke-gate run-agent ${envName}`);
+}
+
+function parseEnvKeys(template) {
+  const keys = [];
+  const lines = template.split("\n");
+  let lastComment = null;
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith("#")) {
+      lastComment = trimmed.slice(1).trim();
+      continue;
+    }
+    const eqIdx = trimmed.indexOf("=");
+    if (eqIdx === -1) { lastComment = null; continue; }
+    const key = trimmed.slice(0, eqIdx).trim();
+    const value = trimmed.slice(eqIdx + 1).trim();
+    const isPlaceholder = !value || value.includes("your_") || value.includes("_here");
+    if (isPlaceholder) {
+      keys.push({ key, comment: lastComment });
+    }
+    lastComment = null;
+  }
+  return keys;
+}
+
+function ask(question) {
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  return new Promise((resolve) => {
+    rl.question(question, (answer) => {
+      rl.close();
+      resolve(answer.trim());
+    });
+  });
+}
+
+async function promptEnvKeys(keys) {
+  const values = {};
+  for (const { key, comment } of keys) {
+    const hint = comment ? ` (${comment})` : "";
+    values[key] = await ask(`  ${key}${hint}: `);
+  }
+  return values;
 }
 
 export function startAgentScheduler() {
