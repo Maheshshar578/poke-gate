@@ -109,22 +109,30 @@ export function discoverAgents() {
   return agents;
 }
 
-function findNodeModules() {
-  const paths = [
-    join(new URL(".", import.meta.url).pathname, "..", "node_modules"),
-    join(process.cwd(), "node_modules"),
-  ];
-  for (const p of paths) {
-    if (existsSync(p)) return p;
-  }
-  return null;
+import { symlinkSync, lstatSync } from "node:fs";
+
+function ensureNodeModulesLink() {
+  const pkgRoot = join(new URL(".", import.meta.url).pathname, "..");
+  const source = join(pkgRoot, "node_modules");
+  const target = join(AGENTS_DIR, "node_modules");
+
+  if (!existsSync(source)) return;
+
+  try {
+    const stat = lstatSync(target);
+    if (stat.isSymbolicLink()) return;
+  } catch {}
+
+  try {
+    symlinkSync(source, target, "junction");
+  } catch {}
 }
 
 function runAgentProcess(agent) {
   const agentEnv = parseEnvFile(agent.envFile);
-  const nodeModules = findNodeModules();
-  const nodePath = [nodeModules, process.env.NODE_PATH].filter(Boolean).join(":");
-  const env = { ...process.env, ...agentEnv, NODE_PATH: nodePath };
+  const env = { ...process.env, ...agentEnv };
+
+  ensureNodeModulesLink();
 
   log(`Running agent: ${agent.name} (${agent.file})`);
 
