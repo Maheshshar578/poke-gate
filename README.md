@@ -238,16 +238,16 @@ Only run Poke Gate on machines and networks you trust.
 clients/
   Poke macOS Gate/       macOS menu bar app (SwiftUI)
 bin/
-  poke-gate.js           CLI entry point, run-agent + agent get subcommands
+  poke-gate.js           CLI entry point, run-agent subcommand
 src/
   app.js                 Startup: MCP server + tunnel + agent scheduler
-  agents.js              Agent discovery, scheduling, env loading, download
+  agents.js              Agent discovery, scheduling, and runner
   mcp-server.js          JSON-RPC MCP handler with OS tools
   tunnel.js              PokeTunnel wrapper
 examples/
   agents/
-    beeper.1h.js         Example: Beeper message digest agent
-    .env.beeper          Example env file for beeper agent
+    beeper.1h.js         Example: Beeper message digest
+    .env.beeper          Example env file
 ```
 
 ## Credits

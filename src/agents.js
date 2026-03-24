@@ -109,9 +109,22 @@ export function discoverAgents() {
   return agents;
 }
 
+function findNodeModules() {
+  const paths = [
+    join(new URL(".", import.meta.url).pathname, "..", "node_modules"),
+    join(process.cwd(), "node_modules"),
+  ];
+  for (const p of paths) {
+    if (existsSync(p)) return p;
+  }
+  return null;
+}
+
 function runAgentProcess(agent) {
   const agentEnv = parseEnvFile(agent.envFile);
-  const env = { ...process.env, ...agentEnv };
+  const nodeModules = findNodeModules();
+  const nodePath = [nodeModules, process.env.NODE_PATH].filter(Boolean).join(":");
+  const env = { ...process.env, ...agentEnv, NODE_PATH: nodePath };
 
   log(`Running agent: ${agent.name} (${agent.file})`);
 
