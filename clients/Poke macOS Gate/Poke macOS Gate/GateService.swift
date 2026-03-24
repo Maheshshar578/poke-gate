@@ -27,8 +27,7 @@ class GateService: ObservableObject {
     }
 
     var hasAPIKey: Bool {
-        let key = loadAPIKey()
-        return key != nil && !key!.isEmpty
+        resolveToken() != nil
     }
 
     func autoStartIfNeeded() {
@@ -111,7 +110,7 @@ class GateService: ObservableObject {
         proc.arguments = ["-c", "npx -y poke-gate --verbose"]
         proc.environment = ProcessInfo.processInfo.environment.merging(
             [
-                "POKE_API_KEY": loadAPIKey() ?? "",
+                "POKE_API_KEY": resolveToken() ?? "",
                 "PATH": fullPath,
             ],
             uniquingKeysWith: { _, new in new }
@@ -225,5 +224,81 @@ class GateService: ObservableObject {
             try? data.write(to: configURL)
         }
         objectWillChange.send()
+    }
+
+    // MARK: - Poke Login Credentials
+
+    private var pokeCredentialsURL: URL {
+        let configDir: URL
+        if let xdg = ProcessInfo.processInfo.environment["XDG_CONFIG_HOME"] {
+            configDir = URL(fileURLWithPath: xdg)
+        } else {
+            configDir = FileManager.default.homeDirectoryForCurrentUser
+                .appendingPathComponent(".config")
+        }
+        return configDir
+            .appendingPathComponent("poke")
+            .appendingPathComponent("credentials.json")
+    }
+
+    var hasPokeLoginCredentials: Bool {
+        loadPokeLoginToken() != nil
+    }
+
+    func loadPokeLoginToken() -> String? {
+        guard let data = try? Data(contentsOf: pokeCredentialsURL),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let token = json["token"] as? String else {
+            return nil
+        }
+        return token
+    }
+
+    var authSource: AuthSource {
+        get {
+            let config = (try? Data(contentsOf: configURL))
+                .flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+            if let source = config?["authSource"] as? String, source == "pokeLogin" {
+                return .pokeLogin
+            }
+            if loadAPIKey() != nil {
+                return .apiKey
+            }
+            if hasPokeLoginCredentials {
+                return .pokeLogin
+            }
+            return .none
+        }
+        set {
+            let dir = configURL.deletingLastPathComponent()
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            var json: [String: Any] = [:]
+            if let data = try? Data(contentsOf: configURL),
+               let existing = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                json = existing
+            }
+            json["authSource"] = newValue == .pokeLogin ? "pokeLogin" : "apiKey"
+            if let data = try? JSONSerialization.data(withJSONObject: json, options: [.prettyPrinted]) {
+                try? data.write(to: configURL)
+            }
+            objectWillChange.send()
+        }
+    }
+
+    func resolveToken() -> String? {
+        switch authSource {
+        case .pokeLogin:
+            return loadPokeLoginToken()
+        case .apiKey:
+            return loadAPIKey()
+        case .none:
+            return loadAPIKey() ?? loadPokeLoginToken()
+        }
+    }
+
+    enum AuthSource {
+        case pokeLogin
+        case apiKey
+        case none
     }
 }
