@@ -1,13 +1,30 @@
 import SwiftUI
 
+class AppDelegate: NSObject, NSApplicationDelegate {
+    var service: GateService?
+
+    func application(_ application: NSApplication, open urls: [URL]) {
+        for url in urls {
+            guard url.scheme == "poke-gate" else { continue }
+            if url.host == "screenshot" {
+                service?.captureAndSend()
+            }
+        }
+    }
+}
+
 @main
 struct Poke_macOS_GateApp: App {
     @StateObject private var service = GateService()
+    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     var body: some Scene {
         MenuBarExtra {
             PopoverContent(service: service)
-                .onAppear { service.autoStartIfNeeded() }
+                .onAppear {
+                    service.autoStartIfNeeded()
+                    appDelegate.service = service
+                }
         } label: {
             Image(systemName: menuBarIcon)
         }

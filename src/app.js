@@ -11,6 +11,10 @@ function log(msg) {
   console.log(`[${ts}] ${msg}`);
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function ensureAuthenticated() {
   if (!isLoggedIn()) {
     log("Signing in to Poke...");
@@ -25,6 +29,53 @@ async function ensureAuthenticated() {
   return token;
 }
 
+async function connectTunnel(mcpUrl, token) {
+  let attempt = 0;
+  const maxDelay = 60_000;
+
+  while (true) {
+    attempt++;
+    const delay = Math.min(2000 * Math.pow(2, attempt - 1), maxDelay);
+
+    try {
+      log(attempt > 1 ? `Reconnecting tunnel (attempt ${attempt})…` : "Connecting tunnel to Poke...");
+
+      await startTunnel({
+        mcpUrl,
+        onEvent: (type, data) => {
+          switch (type) {
+            case "connected":
+              attempt = 0;
+              log(`Tunnel connected (${data.connectionId})`);
+              log("Ready — your Poke agent can now access this machine.");
+              notifyPoke(data.connectionId, token);
+              startAgentScheduler();
+              break;
+            case "disconnected":
+              log("Tunnel disconnected. PokeTunnel will reconnect automatically.");
+              break;
+            case "error":
+              log(`Tunnel error: ${data}`);
+              break;
+            case "tools-synced":
+              log(`Tools synced: ${data}`);
+              break;
+            case "oauth-required":
+              log(`OAuth required: ${data}`);
+              break;
+          }
+        },
+      });
+
+      break;
+    } catch (err) {
+      log(`Tunnel failed: ${err.message}`);
+      log(`Retrying in ${Math.round(delay / 1000)}s…`);
+      await sleep(delay);
+    }
+  }
+}
+
 async function main() {
   log("poke-gate starting...");
 
@@ -35,37 +86,7 @@ async function main() {
 
   const mcpUrl = `http://localhost:${port}/mcp`;
 
-  log("Connecting tunnel to Poke...");
-  try {
-    await startTunnel({
-      mcpUrl,
-      onEvent: (type, data) => {
-        switch (type) {
-          case "connected":
-            log(`Tunnel connected (${data.connectionId})`);
-            log("Ready — your Poke agent can now access this machine.");
-            notifyPoke(data.connectionId, token);
-            startAgentScheduler();
-            break;
-          case "disconnected":
-            log("Tunnel disconnected. Reconnecting...");
-            break;
-          case "error":
-            log(`Tunnel error: ${data}`);
-            break;
-          case "tools-synced":
-            log(`Tools synced: ${data}`);
-            break;
-          case "oauth-required":
-            log(`OAuth required: ${data}`);
-            break;
-        }
-      },
-    });
-  } catch (err) {
-    log(`Failed to connect: ${err.message}`);
-    process.exit(1);
-  }
+  await connectTunnel(mcpUrl, token);
 }
 
 async function notifyPoke(connectionId, token) {
@@ -91,6 +112,14 @@ process.on("SIGINT", () => {
 process.on("SIGTERM", () => {
   log("Shutting down...");
   process.exit(0);
+});
+
+process.on("uncaughtException", (err) => {
+  log(`Uncaught exception: ${err.message}`);
+});
+
+process.on("unhandledRejection", (err) => {
+  log(`Unhandled rejection: ${err instanceof Error ? err.message : String(err)}`);
 });
 
 main();

@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import ScreenCaptureKit
 
 @MainActor
 class GateService: ObservableObject {
@@ -20,6 +21,8 @@ class GateService: ObservableObject {
     private var outputPipe: Pipe?
     private var shouldRestart = true
     private let maxLogs = 200
+    private var restartAttempts = 0
+    private var healthCheckTimer: Timer?
 
     var apiKey: String {
         get { loadAPIKey() ?? "" }
@@ -39,6 +42,68 @@ class GateService: ObservableObject {
         proc.environment = ["HOME": NSHomeDirectory(), "PATH": fullPath]
         try? proc.run()
         appendLog("Launched poke login (npx: \(npxBin)) — check your browser.")
+    }
+
+    func captureAndSend() {
+        appendLog("Screenshot requested via deeplink.")
+
+        Task {
+            do {
+                let content = try await SCShareableContent.current
+                guard let display = content.displays.first else {
+                    appendLog("No display found for screenshot.")
+                    return
+                }
+
+                let filter = SCContentFilter(display: display, excludingWindows: [])
+                let config = SCStreamConfiguration()
+                config.width = display.width * 2
+                config.height = display.height * 2
+                config.capturesAudio = false
+
+                let image = try await SCScreenshotManager.captureImage(
+                    contentFilter: filter,
+                    configuration: config
+                )
+
+                let rep = NSBitmapImageRep(cgImage: image)
+                guard let pngData = rep.representation(using: .png, properties: [:]) else {
+                    appendLog("Failed to encode screenshot as PNG.")
+                    return
+                }
+
+                let tempPath = NSTemporaryDirectory() + "poke-gate-screenshot.png"
+                let tempURL = URL(fileURLWithPath: tempPath)
+                try pngData.write(to: tempURL)
+                appendLog("Screenshot saved to \(tempPath) (\(pngData.count) bytes)")
+
+                let base64 = pngData.base64EncodedString()
+
+                guard let token = loadPokeLoginToken() else {
+                    appendLog("Cannot send screenshot: not signed in to Poke.")
+                    return
+                }
+
+                let url = URL(string: "https://poke.com/api/v1/inbound/api-message")!
+                var request = URLRequest(url: url)
+                request.httpMethod = "POST"
+                request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+                let message = "Here's a screenshot of my screen right now. [Image attached as base64 PNG, \(pngData.count) bytes, \(display.width)x\(display.height)]"
+                let body: [String: Any] = ["message": message]
+                request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+                let (_, response) = try await URLSession.shared.data(for: request)
+                if let httpResp = response as? HTTPURLResponse, httpResp.statusCode == 200 {
+                    appendLog("Screenshot sent to Poke.")
+                } else {
+                    appendLog("Failed to send screenshot to Poke.")
+                }
+            } catch {
+                appendLog("Screenshot error: \(error.localizedDescription)")
+            }
+        }
     }
 
     func autoStartIfNeeded() {
@@ -80,7 +145,9 @@ class GateService: ObservableObject {
 
     func stop() {
         shouldRestart = false
+        stopHealthCheck()
         killProcess()
+        restartAttempts = 0
         status = .stopped
     }
 
@@ -235,6 +302,8 @@ class GateService: ObservableObject {
 
             if line.contains("Tunnel connected") || line.contains("Ready") {
                 status = .connected
+                restartAttempts = 0
+                startHealthCheck()
             } else if line.contains("Tunnel disconnected") || line.contains("Reconnecting") {
                 status = .disconnected
             } else if line.contains("Failed to connect") || line.contains("error") {
@@ -247,10 +316,14 @@ class GateService: ObservableObject {
 
     private func handleTermination(exitCode: Int32) {
         appendLog("Process exited with code \(exitCode)")
+        stopHealthCheck()
+
         if shouldRestart {
+            restartAttempts += 1
+            let delay = min(Double(2 * (1 << min(restartAttempts - 1, 5))), 60.0)
             status = .disconnected
-            appendLog("Restarting in 2 seconds…")
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            appendLog("Restarting in \(Int(delay))s (attempt \(restartAttempts))…")
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
                 if self.shouldRestart {
                     self.launchProcess()
                 }
@@ -258,6 +331,24 @@ class GateService: ObservableObject {
         } else {
             status = .stopped
         }
+    }
+
+    private func startHealthCheck() {
+        stopHealthCheck()
+        healthCheckTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
+            guard let self else { return }
+            Task { @MainActor in
+                if let proc = self.process, !proc.isRunning {
+                    self.appendLog("Health check: process died, restarting.")
+                    self.handleTermination(exitCode: -1)
+                }
+            }
+        }
+    }
+
+    private func stopHealthCheck() {
+        healthCheckTimer?.invalidate()
+        healthCheckTimer = nil
     }
 
     private func appendLog(_ line: String) {
