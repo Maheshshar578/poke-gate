@@ -17,7 +17,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 struct Poke_macOS_GateApp: App {
     @StateObject private var service = GateService()
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         MenuBarExtra {
@@ -25,12 +24,10 @@ struct Poke_macOS_GateApp: App {
                 .onAppear {
                     service.autoStartIfNeeded()
                     appDelegate.service = service
-                    service.refreshSystemPermissions()
+                    service.startPermissionPolling()
                 }
-                .onChange(of: scenePhase) { _, newPhase in
-                    if newPhase == .active {
-                        service.refreshSystemPermissions()
-                    }
+                .onDisappear {
+                    service.stopPermissionPolling()
                 }
         } label: {
             Image(systemName: menuBarIcon)
@@ -76,6 +73,7 @@ struct Poke_macOS_GateApp: App {
 struct PopoverContent: View {
     @ObservedObject var service: GateService
     @Environment(\.openWindow) private var openWindow
+    @State private var pendingFullMode = false
 
     var body: some View {
         if !service.hasCompletedSetup {
@@ -160,29 +158,24 @@ struct PopoverContent: View {
 
                 HStack(spacing: 6) {
                     ForEach(GateService.PermissionMode.allCases) { mode in
+                        let isActive = service.permissionMode == mode || (mode == .full && pendingFullMode)
                         Button {
-                            service.setPermissionMode(mode)
+                            handleModeSelection(mode)
                         } label: {
                             Text(modeChipTitle(mode))
                                 .font(.system(size: 10, weight: .semibold))
-                                .foregroundStyle(service.permissionMode == mode ? .white : .secondary)
+                                .foregroundStyle(isActive ? .white : .secondary)
                                 .padding(.vertical, 5)
                                 .padding(.horizontal, 8)
-                                .background(service.permissionMode == mode ? Color.accentColor : Color.secondary.opacity(0.14))
+                                .background(isActive ? Color.accentColor : Color.secondary.opacity(0.14))
                                 .clipShape(Capsule())
                         }
                         .buttonStyle(.plain)
                     }
                 }
 
-                if service.permissionMode == .full {
-                    Button {
-                        service.requestSystemPermissions()
-                    } label: {
-                        Label("Request macOS permissions", systemImage: "hand.raised.app")
-                            .font(.caption)
-                    }
-                    .buttonStyle(.plain)
+                if service.permissionMode == .full || pendingFullMode {
+                    AccessibilityPermissionView(service: service)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -250,6 +243,12 @@ struct PopoverContent: View {
             .padding(.vertical, 8)
         }
         .frame(width: 320)
+        .onChange(of: service.hasSystemPermissionsGranted) { _, granted in
+            if granted && pendingFullMode {
+                pendingFullMode = false
+                service.setPermissionMode(.full)
+            }
+        }
         }
     }
 
@@ -281,6 +280,18 @@ struct PopoverContent: View {
         case .full: return "Full"
         case .limited: return "Limited"
         case .sandbox: return "Sandbox"
+        }
+    }
+
+    private func handleModeSelection(_ mode: GateService.PermissionMode) {
+        guard mode != service.permissionMode else { return }
+
+        if mode == .full && !service.hasSystemPermissionsGranted {
+            pendingFullMode = true
+            service.openSystemPermission(.accessibility)
+        } else {
+            pendingFullMode = false
+            service.setPermissionMode(mode)
         }
     }
 

@@ -60,5 +60,6 @@ struct AccessibilityPermissionView: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(granted ? Color.green.opacity(0.25) : Color.primary.opacity(0.08), lineWidth: 1)
         )
+        .animation(.easeInOut(duration: 0.2), value: granted)
     }
 }

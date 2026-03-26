@@ -61,6 +61,12 @@ class GateService: ObservableObject {
             case .accessibility: return "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
             }
         }
+
+        var systemImageName: String {
+            switch self {
+            case .accessibility: return "figure.wave"
+            }
+        }
     }
 
     struct SystemPermissionStatus: Identifiable, Equatable {
@@ -100,6 +106,7 @@ class GateService: ObservableObject {
     private var restartAttempts = 0
     private var healthCheckTimer: Timer?
     private var activeTerminalPreviewId: UUID?
+    private var permissionPollingTimer: Timer?
 
     init() {
         self.permissionMode = Self.loadPermissionModeStatic()
@@ -184,6 +191,20 @@ class GateService: ObservableObject {
         systemPermissionStatuses = SystemPermission.allCases.map { permission in
             SystemPermissionStatus(permission: permission, isGranted: isPermissionGranted(permission))
         }
+    }
+
+    func startPermissionPolling() {
+        stopPermissionPolling()
+        permissionPollingTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.refreshSystemPermissions()
+            }
+        }
+    }
+
+    func stopPermissionPolling() {
+        permissionPollingTimer?.invalidate()
+        permissionPollingTimer = nil
     }
 
     func openSystemPermission(_ permission: SystemPermission) {
