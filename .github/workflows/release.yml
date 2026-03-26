@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: macos-26
+    runs-on: macos-15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -38,7 +38,7 @@ jobs:
           git push origin HEAD:refs/heads/main || echo "Push skipped"
 
       - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_26.0.app/Contents/Developer
+        run: sudo xcode-select -s /Applications/Xcode_16.4.app/Contents/Developer
 
       - name: Build universal app
         run: |
@@ -88,6 +88,11 @@ jobs:
           VERSION: ${{ steps.version.outputs.tag }}
           SHA256: ${{ steps.sha.outputs.sha256 }}
         run: |
+          if [[ -z "${TAP_REPO_TOKEN_HOMEBREW:-}" ]]; then
+            echo "Skipping Homebrew tap update because TAP_REPO_TOKEN_HOMEBREW is not set."
+            exit 0
+          fi
+
           VERSION_NUM="${VERSION#v}"
           git clone https://x-access-token:${TAP_REPO_TOKEN_HOMEBREW}@github.com/f/homebrew-tap.git tap
           mkdir -p tap/Casks
