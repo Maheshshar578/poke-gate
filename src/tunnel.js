@@ -28,30 +28,26 @@ async function cleanupStaleConnections() {
   const token = getToken();
   if (!token) return;
   const base = process.env.POKE_API ?? "https://poke.com/api/v1";
+  const state = loadState();
 
-  try {
-    const res = await fetch(`${base}/mcp/connections`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) return;
+  const ids = new Set();
+  if (state.connectionId) ids.add(state.connectionId);
+  if (Array.isArray(state.connectionHistory)) {
+    for (const id of state.connectionHistory) ids.add(id);
+  }
 
-    const connections = await res.json();
-    const stale = (Array.isArray(connections) ? connections : [])
-      .filter((c) => c.name === "poke-gate" && c.id);
+  if (ids.size === 0) return;
 
-    if (stale.length === 0) return;
+  log(`Cleaning up ${ids.size} old connection(s)…`);
 
-    log(`Cleaning up ${stale.length} old connection(s)…`);
-
-    for (const c of stale) {
-      try {
-        await fetch(`${base}/mcp/connections/${c.id}`, {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${token}` },
-        });
-      } catch {}
-    }
-  } catch {}
+  for (const id of ids) {
+    try {
+      await fetch(`${base}/mcp/connections/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } catch {}
+  }
 
   saveState({});
 }
