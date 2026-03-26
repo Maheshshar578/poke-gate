@@ -17,10 +17,10 @@ if (!token) {
 
 function getScreenTime() {
   try {
-    const result = execSync(
-      `defaults read com.apple.ScreenTimeAgent 2>/dev/null || echo "{}"`,
-      { encoding: "utf-8", timeout: 10000 }
-    ).trim();
+    execSync(`defaults read com.apple.ScreenTimeAgent 2>/dev/null || echo "{}"`, {
+      encoding: "utf-8",
+      timeout: 10000,
+    }).trim();
 
     // Fallback: use process list to estimate active apps
     const ps = execSync(
@@ -42,11 +42,10 @@ function getActiveApps() {
       end tell
       return appList as text
     `;
-    const result = execSync(`osascript -e '${script}'`, {
+    return execSync(`osascript -e '${script}'`, {
       encoding: "utf-8",
       timeout: 10000,
     }).trim();
-    return result.split(", ");
   } catch {
     return [];
   }

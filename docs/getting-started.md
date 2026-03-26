@@ -47,7 +47,7 @@ npx poke login
 
 Once connected, you'll see a green dot in the menu bar. The popover shows:
 
-> ● Connected to your Poke, [your name]
+> ● Connected to your Poke, your name
 
 Now open iMessage or Telegram and message your Poke:
 
