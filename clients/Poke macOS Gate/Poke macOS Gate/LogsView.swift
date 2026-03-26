@@ -25,7 +25,7 @@ struct LogsView: View {
                 .help("Copy all logs")
 
                 Button {
-                    service.logs.removeAll()
+                    service.clearLogs()
                 } label: {
                     Image(systemName: "trash")
                         .font(.caption)

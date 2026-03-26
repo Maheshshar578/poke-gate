@@ -324,6 +324,10 @@ class GateService: ObservableObject {
         }
     }
 
+    func clearLogs() {
+        logs = []
+    }
+
     func shellPath() -> String {
         let home = NSHomeDirectory()
         let fallback = "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin"
