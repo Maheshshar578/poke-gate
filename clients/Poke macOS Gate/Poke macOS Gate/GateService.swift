@@ -489,6 +489,15 @@ class GateService: ObservableObject {
         outputPipe?.fileHandleForReading.readabilityHandler = nil
         process = nil
         outputPipe = nil
+        killOrphanedProcesses()
+    }
+
+    private func killOrphanedProcesses() {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/pkill")
+        task.arguments = ["-f", "poke-gate"]
+        try? task.run()
+        task.waitUntilExit()
     }
 
     private func handleOutput(_ raw: String) {

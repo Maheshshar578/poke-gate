@@ -10,7 +10,7 @@ Poke Gate supports three access modes that control what tools your agent can use
 
 ### Full (default)
 
-All tools are available. Risky actions (`run_command`, `write_file`, `take_screenshot`) require **chat approval** — the agent must ask you in chat before executing, and you approve with a signed token.
+All tools are available with no approval required. The agent can run commands, write files, and take screenshots directly.
 
 ### Limited
 
@@ -48,12 +48,14 @@ POKE_GATE_PERMISSION_MODE=sandbox npx poke-gate
 
 ## Tool approval flow
 
-In **full** mode, risky tools (`run_command`, `write_file`, `take_screenshot`) use an HMAC-signed approval flow:
+In **limited** and **sandbox** modes, risky tools (`run_command`, `write_file`, `take_screenshot`) use an HMAC-signed approval flow:
 
 1. The agent calls the tool — Poke Gate returns `AWAITING_APPROVAL` with a signed token
 2. The agent asks you in chat to approve
 3. You approve — the agent re-calls the tool with the approval token
 4. Optionally, you can `remember_in_session` (same command) or `remember_all_risky` (all risky tools for the session)
+
+In **full** mode, all tools execute directly without approval.
 
 ## What protects you
 

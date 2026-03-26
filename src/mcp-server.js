@@ -565,7 +565,7 @@ function handleToolCall(name, args, context = {}) {
     return blocked;
   }
 
-  if (permissionService.isRisky(name)) {
+  if (PERMISSION_MODE !== "full" && permissionService.isRisky(name)) {
     const commandText = typeof cleanArgs.command === "string" ? cleanArgs.command : "";
     const alreadyAllowed = sessionAutoApproveAllRisky.has(sessionId) ||
       (commandText && permissionService.isAllowedBySessionPattern(sessionId, commandText));

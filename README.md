@@ -241,7 +241,7 @@ Poke Gate supports three access modes that control what your agent can do:
 
 | Mode | Description |
 |------|-------------|
-| **Full** (default) | All tools available. Risky actions (commands, file writes, screenshots) require chat approval. |
+| **Full** (default) | All tools available with no approval required. The agent can run commands, write files, and take screenshots directly. |
 | **Limited** | Read-only tools plus a curated set of safe commands (`ls`, `cat`, `grep`, `curl`, etc.). `write_file` and `take_screenshot` are disabled. |
 | **Sandbox** | Broader command support than Limited, but writes are restricted to `~/Downloads` and `/tmp` via macOS `sandbox-exec`. |
 

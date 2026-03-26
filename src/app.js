@@ -2,9 +2,22 @@ import { startMcpServer, enableLogging, getPermissionMode } from "./mcp-server.j
 import { startTunnel } from "./tunnel.js";
 import { startAgentScheduler, stopAgentScheduler } from "./agents.js";
 import { Poke, isLoggedIn, login, getToken } from "poke";
+import { execSync } from "node:child_process";
 
 const verbose = process.argv.includes("--verbose") || process.argv.includes("-v");
 enableLogging(verbose);
+
+function killExistingInstances() {
+  const myPid = process.pid;
+  try {
+    const out = execSync("pgrep -f 'poke-gate'", { encoding: "utf-8" }).trim();
+    const pids = out.split("\n").map(Number).filter((p) => p && p !== myPid);
+    for (const pid of pids) {
+      try { process.kill(pid, "SIGTERM"); } catch {}
+    }
+    if (pids.length > 0) log(`Killed ${pids.length} existing poke-gate process(es).`);
+  } catch {}
+}
 
 function log(msg) {
   const ts = new Date().toISOString().slice(11, 19);
@@ -102,6 +115,7 @@ function scheduleReconnect(mcpUrl, token) {
 }
 
 async function main() {
+  killExistingInstances();
   log("poke-gate starting...");
   log(`Access mode: ${getPermissionMode()}`);
 
@@ -133,7 +147,7 @@ function buildAccessModeMessage(mode) {
       return (
         "Access mode: Full. " +
         "You can run any shell command, read and write files, list directories, take screenshots, and check system info. " +
-        "Risky actions (commands, file writes, screenshots) require user approval in chat before execution."
+        "Use the tools directly whenever needed — no approval required."
       );
   }
 }
