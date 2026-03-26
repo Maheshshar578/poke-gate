@@ -30,7 +30,6 @@ async function ensureAuthenticated() {
 }
 
 let currentTunnel = null;
-let reconnectTimer = null;
 let reconnectWatchdog = null;
 
 async function connectWithRetry(mcpUrl, token) {
@@ -122,7 +121,7 @@ async function notifyPoke(connectionId, token) {
       `Hey! I've connected my computer to you via Poke Gate (tunnel: ${connectionId}). ` +
       `You can now run commands, read and write files, list directories, take screenshots, and check system info on my machine. ` +
       `Just use the tools whenever I ask you to do something on my computer.` +
-      `Now reply me in my language "now I am connected to your computer".`
+      `Now reply me with "now I am connected to your computer" but everytime write those replies in most creativev fun way.`
     );
     log("Notified Poke agent about connection.");
   } catch (err) {

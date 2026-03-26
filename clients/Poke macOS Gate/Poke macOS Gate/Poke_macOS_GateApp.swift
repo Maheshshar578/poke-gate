@@ -17,6 +17,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 struct Poke_macOS_GateApp: App {
     @StateObject private var service = GateService()
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         MenuBarExtra {
@@ -24,6 +25,12 @@ struct Poke_macOS_GateApp: App {
                 .onAppear {
                     service.autoStartIfNeeded()
                     appDelegate.service = service
+                    service.refreshSystemPermissions()
+                }
+                .onChange(of: scenePhase) { _, newPhase in
+                    if newPhase == .active {
+                        service.refreshSystemPermissions()
+                    }
                 }
         } label: {
             Image(systemName: menuBarIcon)
@@ -34,6 +41,11 @@ struct Poke_macOS_GateApp: App {
             LogsView(service: service)
         }
         .defaultSize(width: 560, height: 400)
+
+        Window("Setup", id: "setup") {
+            SetupView(service: service)
+        }
+        .windowResizability(.contentSize)
 
         Window("Settings", id: "settings") {
             SettingsView(service: service)
@@ -66,6 +78,9 @@ struct PopoverContent: View {
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
+        if !service.hasCompletedSetup {
+            SetupView(service: service)
+        } else {
         VStack(spacing: 0) {
             VStack(spacing: 6) {
                 HStack(spacing: 8) {
@@ -107,18 +122,67 @@ struct PopoverContent: View {
                     .foregroundStyle(.tertiary)
                     .textCase(.uppercase)
 
-                if service.logs.isEmpty {
+                if service.terminalPreviews.isEmpty {
                     Text("No activity yet")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 } else {
-                    ForEach(Array(service.logs.suffix(4).enumerated()), id: \.offset) { _, line in
-                        Text(line)
-                            .font(.system(size: 9, design: .monospaced))
-                            .foregroundStyle(.tertiary)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
+                    ForEach(Array(service.terminalPreviews.suffix(4).enumerated()), id: \.element.id) { _, entry in
+                        HStack(spacing: 6) {
+                            Circle()
+                                .fill(entry.exitCode == 0 ? Color.green : (entry.exitCode == nil ? Color.gray : Color.red))
+                                .frame(width: 5, height: 5)
+                            Text("$ \(entry.command)")
+                                .font(.system(size: 9, design: .monospaced))
+                                .foregroundStyle(.tertiary)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                        }
                     }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(12)
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Access mode")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .textCase(.uppercase)
+                    Spacer()
+                    Text(service.permissionMode.title)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+
+                HStack(spacing: 6) {
+                    ForEach(GateService.PermissionMode.allCases) { mode in
+                        Button {
+                            service.setPermissionMode(mode)
+                        } label: {
+                            Text(modeChipTitle(mode))
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(service.permissionMode == mode ? .white : .secondary)
+                                .padding(.vertical, 5)
+                                .padding(.horizontal, 8)
+                                .background(service.permissionMode == mode ? Color.accentColor : Color.secondary.opacity(0.14))
+                                .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+
+                if service.permissionMode == .full {
+                    Button {
+                        service.requestSystemPermissions()
+                    } label: {
+                        Label("Request macOS permissions", systemImage: "hand.raised.app")
+                            .font(.caption)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -170,7 +234,7 @@ struct PopoverContent: View {
                     NSApp.activate(ignoringOtherApps: true)
                     openWindow(id: "about")
                 } label: {
-                    Text("Poke Gate v0.0.8")
+                    Text(appVersionText)
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
                 }
@@ -186,6 +250,7 @@ struct PopoverContent: View {
             .padding(.vertical, 8)
         }
         .frame(width: 320)
+        }
     }
 
     private var statusText: String {
@@ -209,6 +274,25 @@ struct PopoverContent: View {
         case .error: .red
         case .stopped: .gray.opacity(0.5)
         }
+    }
+
+    private func modeChipTitle(_ mode: GateService.PermissionMode) -> String {
+        switch mode {
+        case .full: return "Full"
+        case .limited: return "Limited"
+        case .sandbox: return "Sandbox"
+        }
+    }
+
+    private var appVersionText: String {
+        let short = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.0.0"
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String
+
+        if let build, !build.isEmpty, build != short {
+            return "Poke Gate v\(short) (\(build))"
+        }
+
+        return "Poke Gate v\(short)"
     }
 }
 

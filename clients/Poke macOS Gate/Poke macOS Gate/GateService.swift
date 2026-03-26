@@ -1,6 +1,9 @@
 import Foundation
 import Combine
 import ScreenCaptureKit
+import AppKit
+import CoreGraphics
+import ApplicationServices
 
 @MainActor
 class GateService: ObservableObject {
@@ -12,17 +15,105 @@ class GateService: ObservableObject {
         case error = "Error"
     }
 
+    enum PermissionMode: String, CaseIterable, Identifiable {
+        case full
+        case limited
+        case sandbox
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .full: return "Full System Access"
+            case .limited: return "Limited Permissions"
+            case .sandbox: return "Run in Sandbox"
+            }
+        }
+
+        var subtitle: String {
+            switch self {
+            case .full: return "All tools are available, subject to chat approval."
+            case .limited: return "Safe tools and curated command families only."
+            case .sandbox: return "Broader command support, but wrapped by OS sandbox policies."
+            }
+        }
+    }
+
+    enum SystemPermission: String, CaseIterable, Identifiable {
+        case accessibility
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .accessibility: return "Accessibility"
+            }
+        }
+
+        var subtitle: String {
+            switch self {
+            case .accessibility: return "Needed for keyboard, mouse, and automation-style control."
+            }
+        }
+
+        var settingsURL: String {
+            switch self {
+            case .accessibility: return "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+            }
+        }
+    }
+
+    struct SystemPermissionStatus: Identifiable, Equatable {
+        let permission: SystemPermission
+        let isGranted: Bool
+
+        var id: SystemPermission { permission }
+    }
+
+    struct TerminalPreview: Identifiable, Equatable {
+        let id: UUID
+        let timestamp: Date
+        var command: String
+        var cwd: String?
+        var exitCode: Int?
+        var durationMs: Int?
+        var timedOut: Bool
+        var sandboxMode: String?
+        var stdoutPreview: String?
+        var stderrPreview: String?
+    }
+
     @Published var status: Status = .stopped
     @Published var logs: [String] = []
+    @Published var terminalPreviews: [TerminalPreview] = []
     @Published var userName: String? = nil
+    @Published var permissionMode: PermissionMode
+    @Published var hasCompletedSetup: Bool
+    @Published var systemPermissionStatuses: [SystemPermissionStatus] = []
 
     private var hasAutoStarted = false
     private var process: Process?
     private var outputPipe: Pipe?
     private var shouldRestart = true
     private let maxLogs = 200
+    private let maxTerminalPreviews = 100
     private var restartAttempts = 0
     private var healthCheckTimer: Timer?
+    private var activeTerminalPreviewId: UUID?
+
+    init() {
+        self.permissionMode = Self.loadPermissionModeStatic()
+        self.hasCompletedSetup = Self.loadHasCompletedSetupStatic()
+        refreshSystemPermissions()
+    }
+
+    var hasSystemPermissionsGranted: Bool {
+        !systemPermissionStatuses.isEmpty && systemPermissionStatuses.allSatisfy { $0.isGranted }
+    }
+
+    var missingSystemPermissions: [SystemPermission] {
+        systemPermissionStatuses.filter { !$0.isGranted }.map { $0.permission }
+    }
 
     var apiKey: String {
         get { loadAPIKey() ?? "" }
@@ -42,6 +133,62 @@ class GateService: ObservableObject {
         proc.environment = ["HOME": NSHomeDirectory(), "PATH": fullPath]
         try? proc.run()
         appendLog("Launched poke login (npx: \(npxBin)) — check your browser.")
+    }
+
+    func setPermissionMode(_ mode: PermissionMode) {
+        guard permissionMode != mode else { return }
+        permissionMode = mode
+        savePermissionMode(mode)
+        appendLog("Access mode changed to: \(mode.title)")
+
+        if process?.isRunning == true {
+            appendLog("Restarting gate to apply access mode.")
+            restart()
+        }
+    }
+
+    func completeFirstRunSetup(selectedMode: PermissionMode, requestPermissions: Bool) {
+        setPermissionMode(selectedMode)
+        if requestPermissions {
+            requestSystemPermissions()
+        }
+        hasCompletedSetup = true
+        saveHasCompletedSetup(true)
+        appendLog("Initial setup complete.")
+    }
+
+    func requestSystemPermissions() {
+        openMissingSystemPermissions()
+    }
+
+    func openMissingSystemPermissions() {
+        refreshSystemPermissions()
+
+        guard !missingSystemPermissions.isEmpty else {
+            appendLog("All required macOS permissions are already granted.")
+            return
+        }
+
+        let requested = missingSystemPermissions.map { $0.title }.joined(separator: ", ")
+        appendLog("Opening macOS settings for: \(requested).")
+
+        for permission in missingSystemPermissions {
+            guard let url = URL(string: permission.settingsURL) else { continue }
+            NSWorkspace.shared.open(url)
+        }
+
+        appendLog("Opened Privacy settings for missing permissions.")
+    }
+
+    func refreshSystemPermissions() {
+        systemPermissionStatuses = SystemPermission.allCases.map { permission in
+            SystemPermissionStatus(permission: permission, isGranted: isPermissionGranted(permission))
+        }
+    }
+
+    func openSystemPermission(_ permission: SystemPermission) {
+        guard let url = URL(string: permission.settingsURL) else { return }
+        NSWorkspace.shared.open(url)
     }
 
     func captureAndSend() {
@@ -76,8 +223,6 @@ class GateService: ObservableObject {
                 let tempURL = URL(fileURLWithPath: tempPath)
                 try pngData.write(to: tempURL)
                 appendLog("Screenshot saved to \(tempPath) (\(pngData.count) bytes)")
-
-                let base64 = pngData.base64EncodedString()
 
                 guard let token = loadPokeLoginToken() else {
                     appendLog("Cannot send screenshot: not signed in to Poke.")
@@ -241,6 +386,7 @@ class GateService: ObservableObject {
 
         status = .starting
         appendLog("Starting poke-gate…")
+        appendLog("Access mode: \(permissionMode.title)")
 
         let fullPath = shellPath()
         let npxBin = findNpx()
@@ -255,6 +401,7 @@ class GateService: ObservableObject {
         proc.environment = ProcessInfo.processInfo.environment.merging(
             [
                 "PATH": fullPath,
+                "POKE_GATE_PERMISSION_MODE": permissionMode.rawValue,
             ],
             uniquingKeysWith: { _, new in new }
         )
@@ -299,6 +446,7 @@ class GateService: ObservableObject {
     private func handleOutput(_ raw: String) {
         for line in raw.components(separatedBy: .newlines) where !line.isEmpty {
             appendLog(line)
+            parseTerminalPreviewLine(line)
 
             if line.contains("Tunnel connected") || line.contains("Ready") {
                 status = .connected
@@ -361,6 +509,54 @@ class GateService: ObservableObject {
 
     // MARK: - Config
 
+    private static func loadPermissionModeStatic() -> PermissionMode {
+        let configDir: URL
+        if let xdg = ProcessInfo.processInfo.environment["XDG_CONFIG_HOME"] {
+            configDir = URL(fileURLWithPath: xdg)
+        } else {
+            configDir = FileManager.default.homeDirectoryForCurrentUser
+                .appendingPathComponent(".config")
+        }
+
+        let configURL = configDir
+            .appendingPathComponent("poke-gate")
+            .appendingPathComponent("config.json")
+
+        guard let data = try? Data(contentsOf: configURL),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let value = json["permissionMode"] as? String,
+              let mode = PermissionMode(rawValue: value) else {
+            return .full
+        }
+
+        return mode
+    }
+
+    private static func loadHasCompletedSetupStatic() -> Bool {
+        let configDir: URL
+        if let xdg = ProcessInfo.processInfo.environment["XDG_CONFIG_HOME"] {
+            configDir = URL(fileURLWithPath: xdg)
+        } else {
+            configDir = FileManager.default.homeDirectoryForCurrentUser
+                .appendingPathComponent(".config")
+        }
+
+        let configURL = configDir
+            .appendingPathComponent("poke-gate")
+            .appendingPathComponent("config.json")
+
+        guard let data = try? Data(contentsOf: configURL),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return false
+        }
+
+        if let value = json["setupCompleted"] as? Bool {
+            return value
+        }
+
+        return false
+    }
+
     private var configURL: URL {
         let configDir: URL
         if let xdg = ProcessInfo.processInfo.environment["XDG_CONFIG_HOME"] {
@@ -374,23 +570,143 @@ class GateService: ObservableObject {
             .appendingPathComponent("config.json")
     }
 
-    private func loadAPIKey() -> String? {
+    private func readConfig() -> [String: Any] {
         guard let data = try? Data(contentsOf: configURL),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let key = json["apiKey"] as? String else {
-            return nil
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return [:]
         }
-        return key
+        return json
     }
 
-    private func saveAPIKey(_ key: String) {
+    private func writeConfig(_ json: [String: Any]) {
         let dir = configURL.deletingLastPathComponent()
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let json: [String: Any] = ["apiKey": key]
         if let data = try? JSONSerialization.data(withJSONObject: json, options: [.prettyPrinted]) {
             try? data.write(to: configURL)
         }
         objectWillChange.send()
+    }
+
+    private func loadAPIKey() -> String? {
+        readConfig()["apiKey"] as? String
+    }
+
+    private func saveAPIKey(_ key: String) {
+        var json = readConfig()
+        json["apiKey"] = key
+        writeConfig(json)
+    }
+
+    private func savePermissionMode(_ mode: PermissionMode) {
+        var json = readConfig()
+        json["permissionMode"] = mode.rawValue
+        writeConfig(json)
+    }
+
+    private func saveHasCompletedSetup(_ value: Bool) {
+        var json = readConfig()
+        json["setupCompleted"] = value
+        writeConfig(json)
+    }
+
+    private func isPermissionGranted(_ permission: SystemPermission) -> Bool {
+        switch permission {
+        case .accessibility:
+            return AXIsProcessTrusted()
+        }
+    }
+
+    private func parseTerminalPreviewLine(_ line: String) {
+        let body = stripToolTimestamp(from: line)
+
+        if body == "terminal preview:" {
+            activeTerminalPreviewId = nil
+            return
+        }
+
+        if body.hasPrefix("$ ") {
+            let (command, cwd) = parseCommandAndCwd(body)
+            let preview = TerminalPreview(
+                id: UUID(),
+                timestamp: Date(),
+                command: command,
+                cwd: cwd,
+                exitCode: nil,
+                durationMs: nil,
+                timedOut: false,
+                sandboxMode: nil,
+                stdoutPreview: nil,
+                stderrPreview: nil
+            )
+            terminalPreviews.append(preview)
+            if terminalPreviews.count > maxTerminalPreviews {
+                terminalPreviews.removeFirst(terminalPreviews.count - maxTerminalPreviews)
+            }
+            activeTerminalPreviewId = preview.id
+            return
+        }
+
+        guard let id = activeTerminalPreviewId,
+              let index = terminalPreviews.firstIndex(where: { $0.id == id }) else {
+            return
+        }
+
+        if body.hasPrefix("process: ") {
+            var updated = terminalPreviews[index]
+            updated.exitCode = parseInt(body, key: "exit=")
+            updated.durationMs = parseInt(body, key: "duration=")
+            updated.timedOut = body.contains(" timeout")
+            if body.contains("sandbox=os") {
+                updated.sandboxMode = "os"
+            } else if body.contains("sandbox=none") {
+                updated.sandboxMode = "none"
+            }
+            terminalPreviews[index] = updated
+            return
+        }
+
+        if body.hasPrefix("stdout: ") {
+            var updated = terminalPreviews[index]
+            updated.stdoutPreview = String(body.dropFirst("stdout: ".count))
+            terminalPreviews[index] = updated
+            return
+        }
+
+        if body.hasPrefix("stderr: ") {
+            var updated = terminalPreviews[index]
+            updated.stderrPreview = String(body.dropFirst("stderr: ".count))
+            terminalPreviews[index] = updated
+        }
+    }
+
+    private func stripToolTimestamp(from line: String) -> String {
+        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        guard trimmed.hasPrefix("["), let end = trimmed.firstIndex(of: "]") else {
+            return trimmed
+        }
+        let after = trimmed.index(after: end)
+        return String(trimmed[after...]).trimmingCharacters(in: .whitespaces)
+    }
+
+    private func parseCommandAndCwd(_ body: String) -> (String, String?) {
+        let text = String(body.dropFirst(2))
+        let marker = " (in "
+        guard let range = text.range(of: marker), text.hasSuffix(")") else {
+            return (text, nil)
+        }
+
+        let command = String(text[..<range.lowerBound])
+        let cwdStart = range.upperBound
+        let cwdEnd = text.index(before: text.endIndex)
+        let cwd = String(text[cwdStart..<cwdEnd])
+        return (command, cwd)
+    }
+
+    private func parseInt(_ text: String, key: String) -> Int? {
+        guard let range = text.range(of: key) else { return nil }
+        let suffix = text[range.upperBound...]
+        let digits = suffix.prefix { $0.isNumber }
+        return Int(digits)
     }
 
     // MARK: - Poke Login Credentials
@@ -423,9 +739,8 @@ class GateService: ObservableObject {
 
     var authSource: AuthSource {
         get {
-            let config = (try? Data(contentsOf: configURL))
-                .flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
-            if let source = config?["authSource"] as? String, source == "pokeLogin" {
+            let config = readConfig()
+            if let source = config["authSource"] as? String, source == "pokeLogin" {
                 return .pokeLogin
             }
             if loadAPIKey() != nil {
@@ -437,18 +752,9 @@ class GateService: ObservableObject {
             return .none
         }
         set {
-            let dir = configURL.deletingLastPathComponent()
-            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-            var json: [String: Any] = [:]
-            if let data = try? Data(contentsOf: configURL),
-               let existing = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                json = existing
-            }
+            var json = readConfig()
             json["authSource"] = newValue == .pokeLogin ? "pokeLogin" : "apiKey"
-            if let data = try? JSONSerialization.data(withJSONObject: json, options: [.prettyPrinted]) {
-                try? data.write(to: configURL)
-            }
-            objectWillChange.send()
+            writeConfig(json)
         }
     }
 

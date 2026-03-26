@@ -8,6 +8,8 @@
   },
   "scripts": {
     "start": "node src/app.js",
+    "test": "node --test",
+    "test:watch": "node --test --watch",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "lint:md": "remark . --quiet --frail",

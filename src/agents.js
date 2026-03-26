@@ -1,8 +1,9 @@
 import { readdirSync, readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
-import { join, basename } from "node:path";
+import { join, dirname } from "node:path";
 import { homedir } from "node:os";
 import { exec } from "node:child_process";
 import { createInterface } from "node:readline";
+import { fileURLToPath } from "node:url";
 
 const CONFIG_DIR = process.env.XDG_CONFIG_HOME || join(homedir(), ".config");
 const AGENTS_DIR = join(CONFIG_DIR, "poke-gate", "agents");
@@ -113,7 +114,7 @@ export function discoverAgents() {
 import { symlinkSync, lstatSync } from "node:fs";
 
 function ensureNodeModulesLink() {
-  const pkgRoot = join(new URL(".", import.meta.url).pathname, "..");
+  const pkgRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
   const source = join(pkgRoot, "node_modules");
   const target = join(AGENTS_DIR, "node_modules");
 
@@ -125,7 +126,8 @@ function ensureNodeModulesLink() {
   } catch {}
 
   try {
-    symlinkSync(source, target, "junction");
+    const type = process.platform === "win32" ? "junction" : "dir";
+    symlinkSync(source, target, type);
   } catch {}
 }
 
@@ -186,11 +188,6 @@ export async function downloadAgent(name) {
   mkdirSync(AGENTS_DIR, { recursive: true });
 
   console.log(`Fetching agent "${name}" from GitHub...`);
-
-  const indexRes = await fetch(`${REPO_BASE}/`).catch(() => null);
-
-  const jsUrl = `${REPO_BASE}/${name}`;
-  const envUrl = `${REPO_BASE}/.env.${name}`;
 
   // Try to find the exact file first, or search for name.*.js pattern
   let jsFileName = null;
