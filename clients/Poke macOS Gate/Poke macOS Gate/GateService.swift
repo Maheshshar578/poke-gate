@@ -32,9 +32,9 @@ class GateService: ObservableObject {
 
         var subtitle: String {
             switch self {
-            case .full: return "All tools are available, subject to chat approval."
-            case .limited: return "Safe tools and curated command families only."
-            case .sandbox: return "Broader command support, but strictly limited by macOS sandbox-exec policies."
+            case .full: return "All tools enabled. Risky actions require chat approval."
+            case .limited: return "Read-only tools and safe commands (ls, cat, grep, curl…). File writes and screenshots disabled."
+            case .sandbox: return "Commands like brew, node, python, ffmpeg allowed. Writes restricted to ~/Downloads and /tmp."
             }
         }
     }

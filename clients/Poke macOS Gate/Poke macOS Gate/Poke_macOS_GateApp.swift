@@ -176,11 +176,7 @@ struct PopoverContent: View {
         VStack(alignment: .leading, spacing: 6) {
             sectionTitle("Recent activity")
 
-            if service.terminalPreviews.isEmpty {
-                Text("No activity yet")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } else {
+            if !service.terminalPreviews.isEmpty {
                 ForEach(Array(service.terminalPreviews.suffix(4).enumerated()), id: \.element.id) { _, entry in
                     HStack(spacing: 6) {
                         Circle()
@@ -193,6 +189,18 @@ struct PopoverContent: View {
                             .truncationMode(.tail)
                     }
                 }
+            } else if !service.logs.isEmpty {
+                ForEach(Array(service.logs.suffix(4).enumerated()), id: \.offset) { _, log in
+                    Text(log)
+                        .font(.system(size: 9, design: .monospaced))
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
+            } else {
+                Text("No activity yet")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -228,6 +236,11 @@ struct PopoverContent: View {
                 }
             }
 
+            Text(activeModeDescription)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
             if service.permissionMode == .full || pendingFullMode {
                 AccessibilityPermissionView(service: service)
             }
@@ -235,6 +248,18 @@ struct PopoverContent: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
         .macPanelStyle(.neutral, cornerRadius: 12)
+    }
+
+    private var activeModeDescription: String {
+        let mode = pendingFullMode ? GateService.PermissionMode.full : service.permissionMode
+        switch mode {
+        case .full:
+            return "All tools enabled. Risky actions require chat approval."
+        case .limited:
+            return "Read-only tools and safe commands only (ls, cat, grep, curl…). File writes and screenshots are disabled."
+        case .sandbox:
+            return "Broader commands (brew, node, python, ffmpeg…) but file writes restricted to ~/Downloads and /tmp via macOS sandbox."
+        }
     }
 
     private var actionsSection: some View {
