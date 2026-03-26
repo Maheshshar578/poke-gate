@@ -1,5 +1,11 @@
 import SwiftUI
 
+extension Bundle {
+    var appVersion: String {
+        infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
+    }
+}
+
 struct AboutView: View {
     @Environment(\.dismiss) private var dismiss
 
@@ -13,7 +19,7 @@ struct AboutView: View {
                 .font(.title2)
                 .fontWeight(.semibold)
 
-            Text("Version 0.0.8")
+            Text("Version \(Bundle.main.appVersion)")
                 .font(.caption)
                 .foregroundStyle(.secondary)
 

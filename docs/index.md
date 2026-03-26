@@ -17,24 +17,29 @@ hero:
       link: https://github.com/f/poke-gate
 
 features:
-  - icon: 🖥️
-    title: Full Shell Access
-    details: Run any terminal command on your machine — ls, git, brew, python, curl, and more.
-  - icon: 📁
-    title: File Operations
-    details: Read, write, and list files and directories. Your Poke agent sees your filesystem.
-  - icon: 📸
-    title: Screenshots
-    details: Capture your screen remotely. Poke can see what you see.
-  - icon: 🤖
-    title: Agents
-    details: Scheduled scripts that run in the background — automate message digests, backups, health checks.
-  - icon: 🌴
-    title: macOS Menu Bar App
-    details: Native SwiftUI app that lives in your menu bar. Auto-connects, auto-restarts, shows real-time status.
-  - icon: ⚡
-    title: MCP Tunnel
-    details: Secure WebSocket tunnel powered by the Poke SDK. Only your authenticated agent can reach your machine.
+- icon: 🖥️
+  title: Full Shell Access
+  details: Run any terminal command on your machine — ls, git, brew, python,
+    curl, and more.
+- icon: 📁
+  title: File Operations
+  details: Read, write, and list files and directories. Your Poke agent sees
+    your filesystem.
+- icon: 📸
+  title: Screenshots
+  details: Capture your screen remotely. Poke can see what you see.
+- icon: 🤖
+  title: Agents
+  details: Scheduled scripts that run in the background — automate message
+    digests, backups, health checks.
+- icon: 🌴
+  title: macOS Menu Bar App
+  details: Native SwiftUI app that lives in your menu bar. Auto-connects,
+    auto-restarts, shows real-time status.
+- icon: ⚡
+  title: MCP Tunnel
+  details: Secure WebSocket tunnel powered by the Poke SDK. Only your
+    authenticated agent can reach your machine.
 ---
 
 ## Quick install
