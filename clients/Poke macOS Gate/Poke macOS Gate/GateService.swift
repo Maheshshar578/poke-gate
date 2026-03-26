@@ -91,6 +91,7 @@ class GateService: ObservableObject {
 
     @Published var status: Status = .stopped
     @Published var logs: [String] = []
+    @Published var processLogs: [String] = []
     @Published var terminalPreviews: [TerminalPreview] = []
     @Published var userName: String? = nil
     @Published var permissionMode: PermissionMode
@@ -503,6 +504,7 @@ class GateService: ObservableObject {
     private func handleOutput(_ raw: String) {
         for line in raw.components(separatedBy: .newlines) where !line.isEmpty {
             appendLog(line)
+            appendProcessLog(line)
             parseTerminalPreviewLine(line)
 
             if line.contains("Tunnel connected") || line.contains("Ready") {
@@ -516,6 +518,15 @@ class GateService: ObservableObject {
                     status = .error
                 }
             }
+        }
+    }
+
+    private func appendProcessLog(_ line: String) {
+        let stripped = stripToolTimestamp(from: line)
+        guard !stripped.isEmpty else { return }
+        processLogs.append(stripped)
+        if processLogs.count > maxLogs {
+            processLogs.removeFirst(processLogs.count - maxLogs)
         }
     }
 

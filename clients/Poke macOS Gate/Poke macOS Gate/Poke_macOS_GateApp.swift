@@ -189,9 +189,9 @@ struct PopoverContent: View {
                             .truncationMode(.tail)
                     }
                 }
-            } else if !service.logs.isEmpty {
-                ForEach(Array(service.logs.suffix(4).enumerated()), id: \.offset) { _, log in
-                    Text(log)
+            } else if !service.processLogs.isEmpty {
+                ForEach(Array(service.processLogs.suffix(4).enumerated()), id: \.offset) { _, entry in
+                    Text(entry)
                         .font(.system(size: 9, design: .monospaced))
                         .foregroundStyle(.tertiary)
                         .lineLimit(1)
