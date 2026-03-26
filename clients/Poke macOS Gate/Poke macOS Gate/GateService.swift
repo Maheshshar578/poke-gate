@@ -660,7 +660,19 @@ class GateService: ObservableObject {
     private func isPermissionGranted(_ permission: SystemPermission) -> Bool {
         switch permission {
         case .accessibility:
-            return AXIsProcessTrusted()
+            if AXIsProcessTrusted() { return true }
+            // AXIsProcessTrusted() can return false despite the toggle being ON
+            // in System Settings when the TCC entry's code signature doesn't match
+            // the running binary (ad-hoc signing, rebuild from Xcode, etc.).
+            // Probe the API directly as a fallback.
+            let systemWide = AXUIElementCreateSystemWide()
+            var value: AnyObject?
+            let result = AXUIElementCopyAttributeValue(
+                systemWide,
+                kAXFocusedApplicationAttribute as CFString,
+                &value
+            )
+            return result == .success || result == .noValue || result == .attributeUnsupported
         }
     }
 
