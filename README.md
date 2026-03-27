@@ -293,31 +293,6 @@ POKE_GATE_PERMISSION_MODE=limited npx poke-gate
 
 Only run Poke Gate on machines and networks you trust. Use `limited` or `sandbox` mode if you want tighter restrictions.
 
-## Project structure
-
-```
-clients/
-  Poke macOS Gate/       macOS menu bar app (SwiftUI)
-bin/
-  poke-gate.js           CLI entry point with --mode flag
-src/
-  app.js                 Startup: MCP server + tunnel + agent scheduler
-  agents.js              Agent discovery, scheduling, env loading, download
-  download-macos.js      macOS app installer (download-macos command)
-  mcp-server.js          JSON-RPC MCP handler, tools, access policy, sandbox
-  permission-service.js  HMAC approval tokens, session whitelisting
-  tunnel.js              PokeTunnel wrapper
-test/
-  mcp-server-access-policy.test.js
-  mcp-server-loop-guard.test.js
-  mcp-server-sandbox-command.test.js
-  permission-service.test.js
-examples/
-  agents/
-    beeper.1h.js         Example: Beeper message digest agent
-    .env.beeper          Example env file for beeper agent
-```
-
 ## Credits
 
 - [Poke](https://poke.com) by [The Interaction Company of California](https://interaction.co)
