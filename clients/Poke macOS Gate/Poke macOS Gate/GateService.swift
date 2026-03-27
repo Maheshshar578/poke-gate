@@ -123,7 +123,9 @@ class GateService: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.refreshSystemPermissions()
+            Task { @MainActor in
+                self?.refreshSystemPermissions()
+            }
         }
     }
 
@@ -327,7 +329,7 @@ class GateService: ObservableObject {
         }
     }
 
-    private static func isNewer(_ remote: String, than local: String) -> Bool {
+    private nonisolated static func isNewer(_ remote: String, than local: String) -> Bool {
         let r = remote.split(separator: ".").compactMap { Int($0) }
         let l = local.split(separator: ".").compactMap { Int($0) }
         for i in 0..<max(r.count, l.count) {
