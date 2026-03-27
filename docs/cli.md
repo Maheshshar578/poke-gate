@@ -82,6 +82,22 @@ npx poke-gate agent create --prompt "send me a daily git commit summary across a
 npx poke-gate agent create --prompt "track Spotify listening and log my music taste"
 ```
 
+## Download the macOS app
+
+```bash
+npx poke-gate download-macos
+```
+
+Downloads and installs the Poke macOS Gate app from GitHub Releases. Matches the version of the npm package being run.
+
+This command:
+1. Downloads the DMG from the matching GitHub release
+2. Mounts the DMG, copies the app to `/Applications`
+3. Clears the quarantine flag (`xattr -cr`)
+4. Launches the app
+
+The macOS app also checks for updates automatically on startup and shows a banner when a new version is available.
+
 ## Install an agent
 
 ```bash

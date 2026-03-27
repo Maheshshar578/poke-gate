@@ -39,6 +39,9 @@ async function main() {
     const prompt = promptIdx !== -1 ? args.slice(promptIdx + 1).join(" ") : args.slice(2).join(" ") || null;
     const { createAgent } = await import("../src/agent-create.js");
     await createAgent(prompt);
+  } else if (args[0] === "download-macos") {
+    const { downloadMacOSApp } = await import("../src/download-macos.js");
+    await downloadMacOSApp();
   } else {
     const mode = parseMode();
     if (mode) {

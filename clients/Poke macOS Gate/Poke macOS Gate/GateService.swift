@@ -97,6 +97,8 @@ class GateService: ObservableObject {
     @Published var permissionMode: PermissionMode
     @Published var hasCompletedSetup: Bool
     @Published var systemPermissionStatuses: [SystemPermissionStatus] = []
+    @Published var availableUpdate: String? = nil
+    @Published var isUpdating = false
 
     private var hasAutoStarted = false
     private var process: Process?
@@ -301,6 +303,92 @@ class GateService: ObservableObject {
         hasAutoStarted = true
         if hasAPIKey {
             start()
+        }
+        checkForUpdate()
+    }
+
+    func checkForUpdate() {
+        let currentVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.0.0"
+
+        Task.detached {
+            guard let url = URL(string: "https://registry.npmjs.org/poke-gate/latest") else { return }
+            do {
+                let (data, _) = try await URLSession.shared.data(from: url)
+                guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                      let latestVersion = json["version"] as? String else { return }
+
+                if Self.isNewer(latestVersion, than: currentVersion) {
+                    await MainActor.run {
+                        self.availableUpdate = latestVersion
+                        self.appendLog("Update available: v\(latestVersion) (current: v\(currentVersion))")
+                    }
+                }
+            } catch {}
+        }
+    }
+
+    private static func isNewer(_ remote: String, than local: String) -> Bool {
+        let r = remote.split(separator: ".").compactMap { Int($0) }
+        let l = local.split(separator: ".").compactMap { Int($0) }
+        for i in 0..<max(r.count, l.count) {
+            let rv = i < r.count ? r[i] : 0
+            let lv = i < l.count ? l[i] : 0
+            if rv > lv { return true }
+            if rv < lv { return false }
+        }
+        return false
+    }
+
+    func performUpdate() {
+        guard let version = availableUpdate else { return }
+        isUpdating = true
+        appendLog("Updating to v\(version)...")
+
+        stop()
+
+        let fullPath = shellPath()
+        let npxBin = findNpx()
+
+        let proc = Process()
+        let pipe = Pipe()
+        proc.executableURL = URL(fileURLWithPath: "/bin/zsh")
+        proc.arguments = ["-c", "\(npxBin) -y poke-gate@\(version) download-macos"]
+        proc.environment = ProcessInfo.processInfo.environment.merging(
+            ["PATH": fullPath],
+            uniquingKeysWith: { _, new in new }
+        )
+        proc.standardOutput = pipe
+        proc.standardError = pipe
+        proc.currentDirectoryURL = FileManager.default.homeDirectoryForCurrentUser
+
+        let handle = pipe.fileHandleForReading
+        handle.readabilityHandler = { [weak self] fh in
+            let data = fh.availableData
+            guard !data.isEmpty, let line = String(data: data, encoding: .utf8) else { return }
+            DispatchQueue.main.async {
+                for l in line.components(separatedBy: .newlines) where !l.isEmpty {
+                    self?.appendLog(l)
+                }
+            }
+        }
+
+        proc.terminationHandler = { [weak self] proc in
+            DispatchQueue.main.async {
+                self?.isUpdating = false
+                if proc.terminationStatus == 0 {
+                    self?.appendLog("Update complete. The app will relaunch.")
+                    self?.availableUpdate = nil
+                } else {
+                    self?.appendLog("Update failed (exit \(proc.terminationStatus)).")
+                }
+            }
+        }
+
+        do {
+            try proc.run()
+        } catch {
+            isUpdating = false
+            appendLog("Failed to start update: \(error.localizedDescription)")
         }
     }
 

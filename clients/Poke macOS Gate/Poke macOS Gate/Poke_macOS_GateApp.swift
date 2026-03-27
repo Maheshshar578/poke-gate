@@ -111,6 +111,9 @@ struct PopoverContent: View {
             SetupView(service: service)
         } else {
             VStack(spacing: 10) {
+                if service.availableUpdate != nil {
+                    updateBanner
+                }
                 statusSection
                 recentActivitySection
                 accessModeSection
@@ -126,6 +129,37 @@ struct PopoverContent: View {
                 }
             }
         }
+    }
+
+    private var updateBanner: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "arrow.down.circle.fill")
+                .foregroundStyle(.blue)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Update available: v\(service.availableUpdate ?? "")")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                Text("A new version of Poke Gate is ready.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            if service.isUpdating {
+                ProgressView()
+                    .controlSize(.small)
+            } else {
+                Button("Update") {
+                    service.performUpdate()
+                }
+                .controlSize(.small)
+                .buttonStyle(.borderedProminent)
+            }
+        }
+        .padding(10)
+        .macPanelStyle(.neutral, cornerRadius: 10)
     }
 
     private var statusSection: some View {
