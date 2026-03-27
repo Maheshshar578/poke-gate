@@ -29,8 +29,8 @@ function httpGet(url) {
 
 function downloadFile(url, dest, version) {
   return new Promise((resolve, reject) => {
-    const follow = (url) => {
-      https.get(url, { headers: { "User-Agent": "poke-gate" } }, (res) => {
+    const follow = (followUrl) => {
+      https.get(followUrl, { headers: { "User-Agent": "poke-gate" } }, (res) => {
         if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
           return follow(res.headers.location);
         }
@@ -45,7 +45,6 @@ function downloadFile(url, dest, version) {
 
         res.on("data", (chunk) => {
           downloaded += chunk.length;
-          file.write(chunk);
           if (total > 0) {
             const pct = Math.round((downloaded / total) * 100);
             const dlMB = (downloaded / 1024 / 1024).toFixed(1);
@@ -54,13 +53,16 @@ function downloadFile(url, dest, version) {
           }
         });
 
-        res.on("end", () => {
-          file.end();
-          console.log("");
-          resolve();
+        res.pipe(file);
+
+        file.on("finish", () => {
+          file.close(() => {
+            console.log("");
+            resolve();
+          });
         });
 
-        res.on("error", (err) => {
+        file.on("error", (err) => {
           file.close();
           reject(err);
         });
@@ -98,12 +100,12 @@ export async function downloadMacOSApp() {
     await downloadFile(dmgUrl, dmgPath, version);
 
     console.log("Mounting DMG...");
-    const mountOutput = run(`hdiutil attach "${dmgPath}" -nobrowse -quiet -plist`);
-    const mountMatch = mountOutput.match(/<string>(\/Volumes\/[^<]+)<\/string>/);
+    const mountOutput = run(`hdiutil attach "${dmgPath}" -nobrowse`);
+    const mountMatch = mountOutput.match(/\/Volumes\/.+/);
     if (!mountMatch) {
       throw new Error("Failed to detect mount point from hdiutil output.");
     }
-    const mountPoint = mountMatch[1];
+    const mountPoint = mountMatch[0].trim();
     const appSource = `${mountPoint}/${APP_NAME}.app`;
 
     console.log("Stopping running instances...");

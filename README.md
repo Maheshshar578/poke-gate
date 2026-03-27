@@ -28,6 +28,25 @@ Run Poke Gate on your Mac, then message Poke from iMessage, Telegram, or SMS to 
 brew install f/tap/poke-gate
 ```
 
+**Install via npx**
+
+If you have Node.js installed, you can download and install the macOS app with a single command:
+
+```bash
+npx poke-gate download-macos
+```
+
+This downloads the latest DMG from GitHub Releases, installs the app to `/Applications`, and clears the quarantine flag automatically.
+
+**Don't have Node.js?** Install it first:
+
+```bash
+# Option 1: Homebrew
+brew install node
+
+# Option 2: Download from https://nodejs.org
+```
+
 **Manual download**
 
 Download the latest **Poke.macOS.Gate.dmg** from [Releases](https://github.com/f/poke-gate/releases), open it, and drag to Applications. Since the app is not notarized, you may need to run:
@@ -36,7 +55,9 @@ Download the latest **Poke.macOS.Gate.dmg** from [Releases](https://github.com/f
 xattr -cr /Applications/Poke\ macOS\ Gate.app
 ```
 
-**CLI** (no macOS app needed)
+**CLI only** (no macOS app needed)
+
+If you just want to run poke-gate from the terminal without the menu bar app:
 
 ```bash
 npx poke-gate
@@ -123,7 +144,9 @@ Hit **Run** in Xcode, or build from the command line:
 
 ## CLI usage
 
-If you prefer the command line over the macOS app:
+The CLI requires [Node.js](https://nodejs.org) 18 or later. If you don't have it, install via `brew install node` or download from [nodejs.org](https://nodejs.org).
+
+Start the gate:
 
 ```bash
 npx poke-gate
@@ -140,6 +163,12 @@ Set the access mode with `--mode`:
 ```bash
 npx poke-gate --mode limited
 npx poke-gate --mode sandbox
+```
+
+Install or update the macOS app:
+
+```bash
+npx poke-gate download-macos
 ```
 
 Config is stored at `~/.config/poke-gate/config.json`.
@@ -274,6 +303,7 @@ bin/
 src/
   app.js                 Startup: MCP server + tunnel + agent scheduler
   agents.js              Agent discovery, scheduling, env loading, download
+  download-macos.js      macOS app installer (download-macos command)
   mcp-server.js          JSON-RPC MCP handler, tools, access policy, sandbox
   permission-service.js  HMAC approval tokens, session whitelisting
   tunnel.js              PokeTunnel wrapper
