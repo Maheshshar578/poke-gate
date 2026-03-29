@@ -249,57 +249,6 @@ class GateService: ObservableObject {
         }
     }
 
-    func captureAndSend() {
-        appendLog("Screenshot requested via deeplink.")
-
-        Task {
-            do {
-                let tempPath = NSTemporaryDirectory() + "poke-gate-screenshot.png"
-
-                let proc = Process()
-                proc.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
-                proc.arguments = ["-x", tempPath]
-                try proc.run()
-                proc.waitUntilExit()
-
-                guard proc.terminationStatus == 0 else {
-                    appendLog("Screenshot failed (exit \(proc.terminationStatus)). Grant Screen Recording permission in System Settings > Privacy & Security > Screen Recording.")
-                    return
-                }
-
-                let tempURL = URL(fileURLWithPath: tempPath)
-                let pngData = try Data(contentsOf: tempURL)
-                appendLog("Screenshot saved to \(tempPath) (\(pngData.count) bytes)")
-
-                guard let token = loadPokeLoginToken() else {
-                    appendLog("Cannot send screenshot: not signed in to Poke.")
-                    return
-                }
-
-                let base64 = pngData.base64EncodedString()
-                let url = URL(string: "https://poke.com/api/v1/inbound/api-message")!
-                var request = URLRequest(url: url)
-                request.httpMethod = "POST"
-                request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
-                let message = "Here's a screenshot of my screen. The image is attached as base64 PNG data below:\n\ndata:image/png;base64,\(base64)"
-                let body: [String: Any] = ["message": message]
-                request.httpBody = try JSONSerialization.data(withJSONObject: body)
-
-                let (_, response) = try await URLSession.shared.data(for: request)
-                if let httpResp = response as? HTTPURLResponse, httpResp.statusCode == 200 {
-                    appendLog("Screenshot sent to Poke.")
-                } else {
-                    appendLog("Failed to send screenshot to Poke.")
-                }
-
-                try? FileManager.default.removeItem(at: tempURL)
-            } catch {
-                appendLog("Screenshot error: \(error.localizedDescription)")
-            }
-        }
-    }
 
     func autoStartIfNeeded() {
         guard !hasAutoStarted else { return }

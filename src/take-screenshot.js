@@ -39,7 +39,7 @@ export async function takeScreenshot() {
   try {
     const poke = new Poke({ token });
     await poke.sendMessage(
-      `Here is a screenshot of my screen right now.\n\ndata:image/png;base64,${base64}`
+      `Here is a screenshot of my screen right now. Reply me with the image.\n\n\`\`\`\ndata:image/png;base64,${base64}\n\`\`\``
     );
     console.log("Screenshot sent to Poke.");
   } finally {

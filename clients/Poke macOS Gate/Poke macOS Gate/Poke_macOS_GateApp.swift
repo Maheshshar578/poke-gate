@@ -3,15 +3,6 @@ import ServiceManagement
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     var service: GateService?
-
-    func application(_ application: NSApplication, open urls: [URL]) {
-        for url in urls {
-            guard url.scheme == "poke-gate" else { continue }
-            if url.host == "screenshot" {
-                service?.captureAndSend()
-            }
-        }
-    }
 }
 
 @main
