@@ -1,6 +1,5 @@
 import Foundation
 import Combine
-import ScreenCaptureKit
 import AppKit
 import CoreGraphics
 import ApplicationServices
@@ -41,30 +40,35 @@ class GateService: ObservableObject {
 
     enum SystemPermission: String, CaseIterable, Identifiable {
         case accessibility
+        case screenRecording
 
         var id: String { rawValue }
 
         var title: String {
             switch self {
             case .accessibility: return "Accessibility"
+            case .screenRecording: return "Screen Recording"
             }
         }
 
         var subtitle: String {
             switch self {
             case .accessibility: return "Needed for keyboard, mouse, and automation-style control."
+            case .screenRecording: return "Needed for the take_screenshot tool."
             }
         }
 
         var settingsURL: String {
             switch self {
             case .accessibility: return "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+            case .screenRecording: return "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"
             }
         }
 
         var systemImageName: String {
             switch self {
             case .accessibility: return "figure.wave"
+            case .screenRecording: return "camera.viewfinder"
             }
         }
     }
@@ -239,6 +243,9 @@ class GateService: ObservableObject {
         case .accessibility:
             let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue(): true] as CFDictionary
             _ = AXIsProcessTrustedWithOptions(options)
+        case .screenRecording:
+            guard let url = URL(string: permission.settingsURL) else { return }
+            NSWorkspace.shared.open(url)
         }
     }
 
@@ -247,32 +254,21 @@ class GateService: ObservableObject {
 
         Task {
             do {
-                let content = try await SCShareableContent.current
-                guard let display = content.displays.first else {
-                    appendLog("No display found for screenshot.")
-                    return
-                }
-
-                let filter = SCContentFilter(display: display, excludingWindows: [])
-                let config = SCStreamConfiguration()
-                config.width = display.width * 2
-                config.height = display.height * 2
-                config.capturesAudio = false
-
-                let image = try await SCScreenshotManager.captureImage(
-                    contentFilter: filter,
-                    configuration: config
-                )
-
-                let rep = NSBitmapImageRep(cgImage: image)
-                guard let pngData = rep.representation(using: .png, properties: [:]) else {
-                    appendLog("Failed to encode screenshot as PNG.")
-                    return
-                }
-
                 let tempPath = NSTemporaryDirectory() + "poke-gate-screenshot.png"
+
+                let proc = Process()
+                proc.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+                proc.arguments = ["-x", tempPath]
+                try proc.run()
+                proc.waitUntilExit()
+
+                guard proc.terminationStatus == 0 else {
+                    appendLog("Screenshot failed (exit \(proc.terminationStatus)). Grant Screen Recording permission in System Settings > Privacy & Security > Screen Recording.")
+                    return
+                }
+
                 let tempURL = URL(fileURLWithPath: tempPath)
-                try pngData.write(to: tempURL)
+                let pngData = try Data(contentsOf: tempURL)
                 appendLog("Screenshot saved to \(tempPath) (\(pngData.count) bytes)")
 
                 guard let token = loadPokeLoginToken() else {
@@ -280,13 +276,14 @@ class GateService: ObservableObject {
                     return
                 }
 
+                let base64 = pngData.base64EncodedString()
                 let url = URL(string: "https://poke.com/api/v1/inbound/api-message")!
                 var request = URLRequest(url: url)
                 request.httpMethod = "POST"
                 request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
                 request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-                let message = "Here's a screenshot of my screen right now. [Image attached as base64 PNG, \(pngData.count) bytes, \(display.width)x\(display.height)]"
+                let message = "Here's a screenshot of my screen. The image is attached as base64 PNG data below:\n\ndata:image/png;base64,\(base64)"
                 let body: [String: Any] = ["message": message]
                 request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
@@ -296,6 +293,8 @@ class GateService: ObservableObject {
                 } else {
                     appendLog("Failed to send screenshot to Poke.")
                 }
+
+                try? FileManager.default.removeItem(at: tempURL)
             } catch {
                 appendLog("Screenshot error: \(error.localizedDescription)")
             }
@@ -793,10 +792,6 @@ class GateService: ObservableObject {
         switch permission {
         case .accessibility:
             if AXIsProcessTrusted() { return true }
-            // AXIsProcessTrusted() can return false despite the toggle being ON
-            // in System Settings when the TCC entry's code signature doesn't match
-            // the running binary (ad-hoc signing, rebuild from Xcode, etc.).
-            // Probe the API directly as a fallback.
             let systemWide = AXUIElementCreateSystemWide()
             var value: AnyObject?
             let result = AXUIElementCopyAttributeValue(
@@ -805,6 +800,8 @@ class GateService: ObservableObject {
                 &value
             )
             return result == .success || result == .noValue || result == .attributeUnsupported
+        case .screenRecording:
+            return CGPreflightScreenCaptureAccess()
         }
     }
 

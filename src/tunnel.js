@@ -64,7 +64,7 @@ export async function startTunnel({ mcpUrl, onEvent }) {
     url: mcpUrl,
     name: "poke-gate",
     token,
-    cleanupOnStop: false,
+    cleanupOnStop: true,
   });
 
   tunnel.on("connected", (info) => {
