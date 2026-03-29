@@ -556,7 +556,7 @@ class GateService: ObservableObject {
     private func killOrphanedProcesses() {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/pkill")
-        task.arguments = ["-f", "poke-gate"]
+        task.arguments = ["-f", "node.*poke-gate.*app\\.js"]
         try? task.run()
         task.waitUntilExit()
     }

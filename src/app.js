@@ -9,9 +9,10 @@ enableLogging(verbose);
 
 function killExistingInstances() {
   const myPid = process.pid;
+  const ppid = process.ppid;
   try {
-    const out = execSync("pgrep -f 'poke-gate'", { encoding: "utf-8" }).trim();
-    const pids = out.split("\n").map(Number).filter((p) => p && p !== myPid);
+    const out = execSync("pgrep -f 'node.*poke-gate.*app\\.js'", { encoding: "utf-8" }).trim();
+    const pids = out.split("\n").map(Number).filter((p) => p && p !== myPid && p !== ppid);
     for (const pid of pids) {
       try { process.kill(pid, "SIGTERM"); } catch {}
     }
